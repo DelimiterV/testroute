@@ -13,15 +13,12 @@ import (
 var nc *nats.Conn
 
 func init() {
-	nc, err := nats.Connect("nats://192.168.99.100:4222", nats.PingInterval(20*time.Second))
+	var err error
+	nc, err = nats.Connect("nats://192.168.99.100:4222", nats.PingInterval(20*time.Second))
 	if err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Println("Nats is here!")
-		nc.Publish("new.11", []byte("Hello World"))
-		nc.Publish("id.22", []byte("22222"))
-		nc.Publish("help", []byte("333333333"))
-
 	}
 }
 
