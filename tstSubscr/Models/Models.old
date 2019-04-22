@@ -1,0 +1,3688 @@
+// Models.go
+package Models
+
+import (
+	"database/sql"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+	//_ "github.com/lib/pq"
+	"sync"
+
+	_ "github.com/go-sql-driver/mysql"
+)
+
+func makeTimestamp() int {
+	var k time.Time = time.Now()
+	r := (k.Year()-2000)*1000000 + k.Day()*1000000 + k.Hour()*10000 + k.Minute()*100 + k.Second()
+	return r
+}
+
+type Dbcfg struct {
+	Kind       string
+	Transport  string
+	ServerIP   string
+	ServerPort string
+	DbName     string
+	User       string
+	Password   string
+}
+
+type tmpLttrs struct {
+	Bukva  string
+	kolvo1 int
+	kolvo2 int
+	flag   int
+}
+
+var Bukvi []tmpLttrs
+
+type tmpL struct {
+	Bukva string
+	kolvo int
+}
+type tbln struct {
+	name string
+	id   int
+	set  []tmpL
+}
+
+var TempTableNames []tbln
+
+/* ----- взять меню -----
+type Smn struct {
+	Id   int
+	Name string
+	Url  string
+	Pid  int
+	Mpid int
+	Lang int
+}
+type Mmn struct {
+	Id   int
+	Name string
+	Url  string
+	Pid  int
+	Lang int
+}
+type Fmenu struct {
+	MainMenu []Mmn
+	SecMenu  []Smn
+}
+
+var rMenu_hash Fmenu
+var mu sync.Mutex
+var TimeStamp_Menu time.Time = time.Now().UTC()
+var MmenuAskChan chan int
+var MmenuRezChan chan []Mmn
+var SmenuAskChan chan int
+var SmenuRezChan chan []Smn
+
+func GetMenu() Fmenu {
+
+	var m []Mmn
+	var s []Smn
+	ddur := time.Since(TimeStamp_Menu)
+	if int(ddur.Minutes()) > 1 {
+		MmenuAskChan <- 1
+		m = <-MmenuRezChan
+		TimeStamp_Menu = time.Now().UTC()
+		//		fmt.Println("1-1len:", len(m))
+		mu.Lock()
+		rMenu_hash.MainMenu = make([]Mmn, len(m))
+		copy(rMenu_hash.MainMenu, m)
+		mu.Unlock()
+		SmenuAskChan <- 1
+		s = <-SmenuRezChan
+		//		fmt.Println("1-2len:", len(s))
+
+		mu.Lock()
+		rMenu_hash.SecMenu = make([]Smn, len(s))
+		copy(rMenu_hash.SecMenu, s)
+		mu.Unlock()
+	} else {
+		if len(rMenu_hash.MainMenu) < 2 {
+			MmenuAskChan <- 1
+			m = <-MmenuRezChan
+			TimeStamp_Menu = time.Now().UTC()
+			//			fmt.Println("2-1len:", len(m))
+			mu.Lock()
+			rMenu_hash.MainMenu = make([]Mmn, len(m))
+			copy(rMenu_hash.MainMenu, m)
+			mu.Unlock()
+
+			SmenuAskChan <- 1
+			s = <-SmenuRezChan
+			//			fmt.Println("2-2len:", len(s))
+
+			mu.Lock()
+			rMenu_hash.SecMenu = make([]Smn, len(s))
+			copy(rMenu_hash.SecMenu, s)
+			mu.Unlock()
+		} else {
+			fmt.Println("--------------------------------------------cach")
+
+		}
+	}
+	return rMenu_hash
+}
+*/
+type AccM struct {
+	Id       int
+	Name     string
+	Family   string
+	Password string
+	Kind     int
+	Policy   int
+	Token    string
+	Ttl      int
+	FlagAuth int
+	Email    string
+	Tel      string
+	City     string
+	Address  string
+	Pol      int
+}
+
+//------------------------------------------------------
+type AptInfo struct {
+	Id_apt      int
+	NetName     string
+	Descr       string
+	Id_net      int
+	Address     string
+	Tel         string
+	TelExtra    string
+	FioZ        string
+	Grafik      [7]int8
+	TimeW       [7][2]int8
+	AboutGrafik string
+	Otdels      string
+	AboutAptek  string
+	INN         string
+	OGRN        string
+	KPP         string
+	OKPO        string
+	UrAdres     string
+	IdCity      int
+	Lat         float32
+	Lng         float32
+	Rule        int
+}
+
+var AptecaInfoSetAskChan chan AptInfo
+var AptecaInfoSetRezChan chan int
+
+func SetAptekInfo(id_user int, addr string, tel string, tel2 string, fioz string, g [7]int8, tw [7][2]int8, aboutg string, otd string, aboutA string, inn string, ogrn string, kpp string, okpo string, UrAdres string) int {
+	var a AptInfo
+	var i int
+	fmt.Println("incoming info", a.Id_apt, a.FioZ, a.Tel)
+	a.Id_apt = id_user
+	a.AboutAptek = aboutA
+	a.AboutGrafik = aboutg
+	a.Address = addr
+	a.FioZ = fioz
+	for i = 0; i < 7; i++ {
+		a.Grafik[i] = g[i]
+	}
+	a.INN = inn
+	a.KPP = kpp
+	a.OGRN = ogrn
+	a.OKPO = okpo
+	a.Otdels = otd
+	a.Tel = tel
+	a.TelExtra = tel2
+	for i = 0; i < 7; i++ {
+		a.TimeW[i][0] = tw[i][0]
+		a.TimeW[i][1] = tw[i][1]
+	}
+	a.UrAdres = UrAdres
+	AptecaInfoSetAskChan <- a
+	r := <-AptecaInfoSetRezChan
+	return r
+}
+
+//--------------------------
+var AptecaInfoAskChan chan int
+var AptecaInfoRezChan chan AptInfo
+
+func GetAptekInfo(id int) AptInfo {
+	AptecaInfoAskChan <- id
+	r := <-AptecaInfoRezChan
+	return r
+}
+
+//-------------------------------------------------------
+var GetUidAptekaAskChan chan int
+var GetUidAptekaRezChan chan int
+
+func GetUidApteka(idapt int) int {
+	GetUidAptekaAskChan <- idapt
+	r := <-GetUidAptekaRezChan
+	return r
+}
+
+//-------------------------------------------------------
+type netw struct {
+	id    int
+	name  string
+	descr string
+}
+
+var rRegNetwork_hash []netw
+var muN sync.Mutex
+var TimeStamp_REGNET time.Time = time.Now().UTC()
+
+func GetNetworks(db *sql.DB) []netw {
+
+	ddur := time.Since(TimeStamp_REGNET)
+	if int(ddur.Minutes()) > 10 {
+		var k netw
+		var m []netw
+		m = make([]netw, 0)
+		rowd, _ := db.Query("SELECT * FROM aptnet ;")
+		for rowd.Next() {
+			_ = rowd.Scan(&k.id, &k.name, &k.descr)
+			m = append(m, k)
+		}
+		muN.Lock()
+		rRegNetwork_hash = make([]netw, len(m))
+		copy(rRegNetwork_hash, m)
+		muN.Unlock()
+		TimeStamp_REGNET = time.Now().UTC()
+
+	} else {
+		if len(rRegNetwork_hash) < 2 {
+			var k netw
+			var m []netw
+			m = make([]netw, 0)
+			rowd, _ := db.Query("SELECT * FROM aptnet ;")
+			for rowd.Next() {
+				_ = rowd.Scan(&k.id, &k.name, &k.descr)
+
+				m = append(m, k)
+			}
+			muN.Lock()
+			rRegNetwork_hash = make([]netw, len(m))
+			copy(rRegNetwork_hash, m)
+			muN.Unlock()
+			TimeStamp_REGNET = time.Now().UTC()
+
+		} else {
+			fmt.Println("--------------------------------------------cach")
+
+		}
+	}
+	return rRegNetwork_hash
+
+}
+
+//-------------------------------------------------------
+type AptInfoShort struct {
+	Id_apt     int
+	Uid        int
+	NetName    string
+	Descr      string
+	Id_net     int
+	Address    string
+	Tel        string
+	TelExtra   string
+	AboutAptek string
+	Lat        float32
+	Lng        float32
+}
+
+var FromCityAptekAskChan chan int
+var FromCityAptekRezChan chan []AptInfoShort
+
+func GetAptekiFromCity(id_city int) []AptInfoShort {
+	FromCityAptekAskChan <- id_city
+	r := <-FromCityAptekRezChan
+	return r
+}
+
+//-------------------------------------------------------
+type lostat struct {
+	KolvoAptek int
+	MinPrice   float32
+}
+type mm_ask struct {
+	IdLek  int
+	IdCity int
+}
+
+var GetOstatPrice1AskChan chan mm_ask
+var GetOstatPrice1RezChan chan lostat
+var GetOstatPrice2AskChan chan mm_ask
+var GetOstatPrice2RezChan chan lostat
+var GetOstatPrice3AskChan chan mm_ask
+var GetOstatPrice3RezChan chan lostat
+var GetOstatPrice4AskChan chan mm_ask
+var GetOstatPrice4RezChan chan lostat
+
+func GetKolvoPrice(idLek int, city int, region int) (int, float32) {
+	var ask mm_ask
+	ask.IdCity = city
+	ask.IdLek = idLek
+	var p lostat
+	switch region {
+	case 1:
+		GetOstatPrice1AskChan <- ask
+		p = <-GetOstatPrice1RezChan
+	case 2:
+		GetOstatPrice2AskChan <- ask
+		p = <-GetOstatPrice2RezChan
+	case 3:
+		GetOstatPrice3AskChan <- ask
+		p = <-GetOstatPrice3RezChan
+	case 4:
+		GetOstatPrice4AskChan <- ask
+		p = <-GetOstatPrice4RezChan
+	default:
+		fmt.Println("Some region error!")
+		GetOstatPrice1AskChan <- ask
+		p = <-GetOstatPrice1RezChan
+	}
+	return p.KolvoAptek, p.MinPrice
+}
+
+//-------------------------------------------------------
+type UnmmLcart struct {
+	Id      int
+	Flag    int
+	NameL   string
+	Proizv  string
+	NameD   string
+	Country string
+	Gdescr  string
+	Form    string
+	Sostav  string
+	Farmac  string
+}
+
+var LookForNmmAskChan chan int
+var LookForNmmRezChan chan []UnmmLcart
+
+func GetNmmRezult(id int) []UnmmLcart {
+	LookForNmmAskChan <- id
+	r := <-LookForNmmRezChan
+	fmt.Println("Models NMM len:", len(r))
+	return r
+}
+
+//------------------------------------------------------
+var LookNmmIdAskChan chan string
+var LookNmmIdRezChan chan int
+
+func GetNmmId(name string) int {
+	LookNmmIdAskChan <- name
+	r := <-LookNmmIdRezChan
+	return r
+}
+
+//------------------------------------------------------
+var LookNmmNameAskChan chan int
+var LookNmmNameRezChan chan string
+
+func GetNmmName(id int) string {
+	LookNmmNameAskChan <- id
+	r := <-LookNmmNameRezChan
+	return r
+}
+
+//-------------------------------------------------------
+var CheckMaxAskChan chan string
+var CheckMaxRezChan chan int
+
+func GetMaxIdTable(table string) int {
+	CheckMaxAskChan <- table
+	r := <-CheckMaxRezChan
+	return r
+}
+
+//-------------------------------------------------------
+type llu struct {
+	Id      int
+	Name    string
+	Deistv  string
+	Proizv  string
+	Price   float32
+	Ostatok int
+}
+type llut struct {
+	Id      int
+	Price   float32
+	Ostatok int
+}
+type gtt struct {
+	uid    int
+	offset int
+}
+
+var GetLekFromAptekaAsk1 chan gtt
+var GetLekFromAptekaRez1 chan []llut
+var GetLekFromAptekaAsk2 chan gtt
+var GetLekFromAptekaRez2 chan []llut
+var GetLekFromAptekaAsk3 chan gtt
+var GetLekFromAptekaRez3 chan []llut
+var GetLekFromAptekaAsk4 chan gtt
+var GetLekFromAptekaRez4 chan []llut
+
+var FillAptekInfoAskChan chan []llut
+var FillAptekInfoRezChan chan []llu
+
+func GetLekApteki(idapt int, city string, offset int) ([]llu, int) {
+	var rez []llu
+	rez = make([]llu, 0)
+	var r []llut
+	var uid gtt
+	f := GetCities()
+	z := 0
+	uid.uid = GetUidApteka(idapt)
+	uid.offset = offset
+	for i := 0; i < len(f.Cities) && z == 0; i++ {
+		if city == f.Cities[i].NameC {
+			z = f.Cities[i].Uid
+		}
+	}
+	if z != 0 {
+		switch z {
+		case 1:
+			GetLekFromAptekaAsk1 <- uid
+			r = <-GetLekFromAptekaRez1
+		case 2:
+			GetLekFromAptekaAsk2 <- uid
+			r = <-GetLekFromAptekaRez2
+		case 3:
+			GetLekFromAptekaAsk3 <- uid
+			r = <-GetLekFromAptekaRez3
+		case 4:
+			GetLekFromAptekaAsk4 <- uid
+			r = <-GetLekFromAptekaRez4
+		}
+	}
+	FillAptekInfoAskChan <- r
+	rez = <-FillAptekInfoRezChan
+	return rez, len(rez)
+}
+
+//-------------------------------------------------------
+type llt struct {
+	Id     int
+	Name   string
+	Deistv string
+	Proizv string
+}
+
+var SizeSet int = 20
+var MaxLekId int = 0
+var TimeStamp_MaxLek time.Time = time.Now().UTC()
+
+var TakeLekKitAskChan chan int
+var TakeLekKitRezChan chan []llt
+
+func GetLekar(idp int) ([]llt, int) {
+
+	if MaxLekId == 0 {
+		MaxLekId = GetMaxIdTable("registry")
+	} else {
+		ddur := time.Since(TimeStamp_MaxLek)
+		if int(ddur.Hours()) > 3 {
+			go func() {
+				MaxLekId = GetMaxIdTable("registry")
+				TimeStamp_MaxLek = time.Now().UTC()
+			}()
+		}
+	}
+	TakeLekKitAskChan <- idp
+	mrez := <-TakeLekKitRezChan
+
+	return mrez, MaxLekId
+}
+
+//-------------------------------------------------------
+type aptch struct {
+	UserId     int
+	NameSpisok string
+	LekId      int
+	NameL      string
+	Proizv     string
+	NameD      string
+	Form       string
+}
+
+var GetAptechkaAskChan chan int
+var GetAptechkaRezChan chan []aptch
+var SetAptechkaAskChan chan aptch
+var SetAptechkaRezChan chan int
+var DelFromAptechkaAskChan chan int
+var DelFromAptechkaRezChan chan int
+
+/*
+type SnLcart struct {
+	Flag    int
+	NameL   string
+	Pic     string
+	Proizv  string
+	NameD   string
+	Country string
+	Gdescr  string
+	Form    string
+	Sostav  string
+	Farmac  string
+}
+*/
+func GetAptechka(UserId int) []aptch {
+	GetAptechkaAskChan <- UserId
+	r := <-GetAptechkaRezChan
+	for i := 0; i < len(r); i++ {
+		f := GetLcartInfo(r[i].LekId)
+		r[i].NameD = f.NameD
+		r[i].NameL = f.NameL
+		r[i].Form = f.Form
+		r[i].Proizv = f.Proizv
+	}
+	return r
+}
+func SetAptechka(UserId int, NameSpisok string, LekId int) int {
+	var a aptch
+	a.UserId = UserId
+	a.NameSpisok = NameSpisok
+	a.LekId = LekId
+	SetAptechkaAskChan <- a
+	r := <-SetAptechkaRezChan
+	return r
+}
+func DeleteFromAptechka(idLek int) int {
+	DelFromAptechkaAskChan <- idLek
+	r := <-DelFromAptechkaRezChan
+	return r
+}
+
+//-------------------------------------------------------
+type Ostt struct {
+	IdA      int
+	IdApteki int
+	Price    float32
+	Kolvo    int
+	NameA    string
+	TelA     string
+	AddressA string
+	Lat      float32
+	Lng      float32
+}
+type Ainfo struct {
+	IdA     int
+	NameNet string
+	Address string
+	Tel     string
+	Lat     float32
+	Lng     float32
+}
+
+var GetOstatki1AskChan chan mm_ask
+var GetOstatki1RezChan chan []Ostt
+var GetOstatki2AskChan chan mm_ask
+var GetOstatki2RezChan chan []Ostt
+var GetOstatki3AskChan chan mm_ask
+var GetOstatki3RezChan chan []Ostt
+var GetOstatki4AskChan chan mm_ask
+var GetOstatki4RezChan chan []Ostt
+var TakeAinfoAskChan chan int
+var TakeAinfoRezChan chan Ainfo
+
+func GetLekOst(id int, cityid int, region int) []Ostt {
+	var p []Ostt
+	var kt mm_ask
+	kt.IdCity = cityid
+	kt.IdLek = id
+	switch region {
+	case 1:
+		GetOstatki1AskChan <- kt
+		p = <-GetOstatki1RezChan
+	case 2:
+		GetOstatki2AskChan <- kt
+		p = <-GetOstatki2RezChan
+	case 3:
+		GetOstatki3AskChan <- kt
+		p = <-GetOstatki3RezChan
+	case 4:
+		GetOstatki4AskChan <- kt
+		p = <-GetOstatki4RezChan
+	default:
+		fmt.Println("Some region error!")
+		GetOstatki1AskChan <- kt
+		p = <-GetOstatki1RezChan
+	}
+	for i := 0; i < len(p); i++ {
+		TakeAinfoAskChan <- p[i].IdApteki
+		kiss := <-TakeAinfoRezChan
+		fmt.Println(kiss)
+		p[i].NameA = kiss.NameNet
+		p[i].AddressA = kiss.Address
+		p[i].TelA = kiss.Tel
+		p[i].Lat = kiss.Lat
+		p[i].Lng = kiss.Lng
+		p[i].IdA = kiss.IdA
+	}
+	return p
+}
+
+//------------------------------------------------------
+type Nnp struct {
+	email string
+	pass  string
+}
+
+var NewPassAskChan chan Nnp
+var NewPassRezChan chan int
+
+func NewPassword(email string, password string) int {
+	var k Nnp
+	k.email = email
+	k.pass = password
+	NewPassAskChan <- k
+	r := <-NewPassRezChan
+	return r
+}
+
+//-------------------------------------------------------
+var IfExistAskChan chan string
+var IfExistRezChan chan int
+
+func IsExistEmail(email string) int {
+	IfExistAskChan <- email
+	r := <-IfExistRezChan
+	return r
+}
+
+//-------------------------------------------------------
+type Zzi struct {
+	id      int
+	name    string
+	family  string
+	tel     string
+	address string
+	pol     int
+}
+
+var UpdateUAskChan chan Zzi
+var UpdateURezChan chan int
+
+// UpdateUser sefe
+func UpdateUser(id int, name string, family string, tel string, address string, pol int) int {
+	var data Zzi
+	data.id = id
+	data.name = name
+	data.family = family
+	data.tel = tel
+	data.address = address
+	data.pol = pol
+	UpdateUAskChan <- data
+	r := <-UpdateURezChan
+	return r
+}
+
+// -------------------------------------------------------
+type rks struct {
+	uid     int
+	tel     string
+	address string
+	FIOZ    string
+}
+
+var AddAshortAskChan chan rks
+var AddAshortRezChan chan int
+
+func AddShortApteka(uid int, tel string, address string, FIOZ string) int {
+	var mm rks
+	mm.uid = uid
+	mm.tel = tel
+	mm.address = address
+	mm.FIOZ = FIOZ
+	AddAshortAskChan <- mm
+	r := <-AddAshortRezChan
+	return r
+}
+
+//--------------------------------------------------------
+var rAccR_hash []AccM
+var TimeStamp_AccR time.Time = time.Now().UTC()
+var AddUAskChan chan AccM
+var AddURezChan chan int
+
+func AddUser(name string, family string, password string, kind int, policy int, token string, ttl int, fa int, email string, tel string, city string, address string, pol int) int {
+	var ss AccM
+	ss.Name = name
+	ss.Family = family
+	ss.Password = password
+	ss.Kind = kind
+	ss.Policy = policy
+	ss.Token = token
+	ss.Ttl = ttl
+	ss.FlagAuth = fa
+	ss.Email = email
+	ss.Tel = tel
+	ss.City = city
+	ss.Address = address
+	ss.Pol = pol
+	AddUAskChan <- ss
+	f := <-AddURezChan
+	return f
+
+}
+
+//--------------------------------------------------------
+var CheckUAskChan chan []string
+var CheckURezChan chan int
+
+func CheckUser(email string, password string) int {
+	var as []string
+	as = make([]string, 0)
+	as = append(as, email)
+	as = append(as, password)
+	CheckUAskChan <- as
+	f := <-CheckURezChan
+	return f
+}
+
+//--------------------------------------------------------
+var GetUAskChan chan int
+var GetURezChan chan AccM
+
+func GetUser(id int) AccM {
+	GetUAskChan <- id
+	r := <-GetURezChan
+	return r
+}
+
+//--------------------------------------------------------
+var LoginUAskChan chan []string
+var LoginURezChan chan AccM
+
+func LoginUser(email string, password string) AccM {
+	var as []string
+	as = make([]string, 0)
+	as = append(as, email)
+	as = append(as, password)
+	LoginUAskChan <- as
+	f := <-LoginURezChan
+	return f
+}
+
+//----------------------------------------
+type R_city struct {
+	Id    int
+	Uid   int
+	NameC string
+	Zoom  int
+	Lat   float32
+	Lng   float32
+}
+type R_region struct {
+	Id    int
+	NameR string
+}
+type RC_region struct {
+	Regions []R_region
+	Cities  []R_city
+}
+
+var rRegCity_hash RC_region
+var mu sync.Mutex
+var TimeStamp_REGCITY time.Time = time.Now().UTC()
+var RegCAskChan chan int
+var RegCRezChan chan []R_region
+var RCityAskChan chan int
+var RCityRezChan chan []R_city
+
+func GetCities() RC_region {
+	var m []R_region
+	var s []R_city
+	ddur := time.Since(TimeStamp_REGCITY)
+	if int(ddur.Minutes()) > 10 {
+		RegCAskChan <- 1
+		m = <-RegCRezChan
+		mu.Lock()
+		rRegCity_hash.Regions = make([]R_region, len(m))
+		copy(rRegCity_hash.Regions, m)
+		mu.Unlock()
+		RCityAskChan <- 1
+		s = <-RCityRezChan
+		mu.Lock()
+		rRegCity_hash.Cities = make([]R_city, len(s))
+		copy(rRegCity_hash.Cities, s)
+		mu.Unlock()
+		TimeStamp_REGCITY = time.Now().UTC()
+		//		fmt.Println("1-1len:", len(m))
+
+	} else {
+		if len(rRegCity_hash.Cities) < 2 {
+			RegCAskChan <- 1
+			m = <-RegCRezChan
+			mu.Lock()
+			rRegCity_hash.Regions = make([]R_region, len(m))
+			copy(rRegCity_hash.Regions, m)
+			mu.Unlock()
+			RCityAskChan <- 1
+			s = <-RCityRezChan
+			mu.Lock()
+			rRegCity_hash.Cities = make([]R_city, len(s))
+			copy(rRegCity_hash.Cities, s)
+			mu.Unlock()
+			TimeStamp_REGCITY = time.Now().UTC()
+			//		fmt.Println("1-1len:", len(m))
+
+		} else {
+			fmt.Println("--------------------------------------------cach")
+
+		}
+	}
+	return rRegCity_hash
+}
+
+//----------------------------------------
+var GetFlagAskChan chan int
+var GetFlagRezChan chan int
+
+func GetFlagTmp() int {
+	GetFlagAskChan <- 1
+	r := <-GetFlagRezChan
+	return r
+}
+
+//----------------------------------------
+var GetIdRegChan chan string
+var GetIdRegRezChan chan int
+
+func GetIdReg(name string) int {
+	var r int
+	if GetFlagTmp() == 1 {
+		r = GetNormIdReg(name)
+	} else {
+		GetIdRegChan <- name
+		r = <-GetIdRegRezChan
+	}
+	return r
+}
+
+//----------------------------------------
+var GetIdNormRegChan chan string
+var GetIdNormRegRezChan chan int
+
+func GetNormIdReg(name string) int {
+	var r int
+	if GetFlagTmp() == 1 {
+		GetIdNormRegChan <- name
+		r = <-GetIdNormRegRezChan
+	} else {
+		r = GetIdReg(name)
+	}
+	return r
+}
+
+//----------------------------------------
+type SnLcart struct {
+	Flag    int
+	NameL   string
+	Proizv  string
+	NameD   string
+	Country string
+	Gdescr  string
+	Form    string
+	Sostav  string
+	Farmac  string
+}
+
+var SnLcartAskChan chan int
+var SnLcartRezChan chan SnLcart
+
+func GetLcartInfo(id int) SnLcart {
+	var r SnLcart
+	SnLcartAskChan <- id
+	r = <-SnLcartRezChan
+	return r
+}
+
+//----------------------------------------
+type FndR struct {
+	Id     int
+	DrugID int
+	FormID int
+	MnnID  int
+	FabrId int
+	Name   string
+}
+
+var rFindR_hash []FndR
+var TimeStamp_Find time.Time = time.Now().UTC()
+var FindAskChan chan string
+var FindRezChan chan []string
+
+// models chanel pool
+// пары значений
+
+func FindFunc(Mask string) []string {
+	var r []string
+	FindAskChan <- Mask
+	r = <-FindRezChan
+	return r
+}
+
+func ini_channels() {
+	GetFlagAskChan = make(chan int)
+	GetFlagRezChan = make(chan int)
+	AddUAskChan = make(chan AccM)
+	AddURezChan = make(chan int)
+	CheckUAskChan = make(chan []string)
+	CheckURezChan = make(chan int)
+	GetUAskChan = make(chan int)
+	GetURezChan = make(chan AccM)
+	LoginUAskChan = make(chan []string)
+	LoginURezChan = make(chan AccM)
+	RegCAskChan = make(chan int)
+	RegCRezChan = make(chan []R_region)
+	RCityAskChan = make(chan int)
+	RCityRezChan = make(chan []R_city)
+	UpdateUAskChan = make(chan Zzi)
+	UpdateURezChan = make(chan int)
+	GetOstatki1AskChan = make(chan mm_ask)
+	GetOstatki1RezChan = make(chan []Ostt)
+	GetOstatki2AskChan = make(chan mm_ask)
+	GetOstatki2RezChan = make(chan []Ostt)
+	GetOstatki3AskChan = make(chan mm_ask)
+	GetOstatki3RezChan = make(chan []Ostt)
+	GetOstatki4AskChan = make(chan mm_ask)
+	GetOstatki4RezChan = make(chan []Ostt)
+	TakeAinfoAskChan = make(chan int)
+	TakeAinfoRezChan = make(chan Ainfo)
+	IfExistAskChan = make(chan string)
+	IfExistRezChan = make(chan int)
+	NewPassAskChan = make(chan Nnp)
+	NewPassRezChan = make(chan int)
+	GetAptechkaAskChan = make(chan int)
+	GetAptechkaRezChan = make(chan []aptch)
+	SetAptechkaAskChan = make(chan aptch)
+	SetAptechkaRezChan = make(chan int)
+	DelFromAptechkaAskChan = make(chan int)
+	DelFromAptechkaRezChan = make(chan int)
+	GetIdNormRegChan = make(chan string)
+	GetIdNormRegRezChan = make(chan int)
+	GetIdRegChan = make(chan string)
+	GetIdRegRezChan = make(chan int)
+	SnLcartAskChan = make(chan int)
+	SnLcartRezChan = make(chan SnLcart)
+	FindAskChan = make(chan string)
+	FindRezChan = make(chan []string)
+	LookForNmmAskChan = make(chan int)
+	LookForNmmRezChan = make(chan []UnmmLcart)
+	LookNmmIdAskChan = make(chan string)
+	LookNmmIdRezChan = make(chan int)
+	AptecaInfoAskChan = make(chan int)
+	AptecaInfoRezChan = make(chan AptInfo)
+	AptecaInfoSetAskChan = make(chan AptInfo)
+	AptecaInfoSetRezChan = make(chan int)
+	LookNmmNameAskChan = make(chan int)
+	LookNmmNameRezChan = make(chan string)
+	GetOstatPrice1AskChan = make(chan mm_ask)
+	GetOstatPrice1RezChan = make(chan lostat)
+	GetOstatPrice2AskChan = make(chan mm_ask)
+	GetOstatPrice2RezChan = make(chan lostat)
+	GetOstatPrice3AskChan = make(chan mm_ask)
+	GetOstatPrice3RezChan = make(chan lostat)
+	GetOstatPrice4AskChan = make(chan mm_ask)
+	GetOstatPrice4RezChan = make(chan lostat)
+	FromCityAptekAskChan = make(chan int)
+	FromCityAptekRezChan = make(chan []AptInfoShort)
+	CheckMaxAskChan = make(chan string)
+	CheckMaxRezChan = make(chan int)
+	TakeLekKitAskChan = make(chan int)
+	TakeLekKitRezChan = make(chan []llt)
+	GetLekFromAptekaAsk1 = make(chan gtt)
+	GetLekFromAptekaRez1 = make(chan []llut)
+	GetLekFromAptekaAsk2 = make(chan gtt)
+	GetLekFromAptekaRez2 = make(chan []llut)
+	GetLekFromAptekaAsk3 = make(chan gtt)
+	GetLekFromAptekaRez3 = make(chan []llut)
+	GetLekFromAptekaAsk4 = make(chan gtt)
+	GetLekFromAptekaRez4 = make(chan []llut)
+	FillAptekInfoAskChan = make(chan []llut)
+	FillAptekInfoRezChan = make(chan []llu)
+	GetUidAptekaAskChan = make(chan int)
+	GetUidAptekaRezChan = make(chan int)
+	AddAshortAskChan = make(chan rks)
+	AddAshortRezChan = make(chan int)
+	AddBronAskChan = make(chan lbron)
+	AddBronRezChan = make(chan int)
+	GetBronListAskChan = make(chan int)
+	GetBronListRezChan = make(chan []Kpp)
+	ConfirmBronAskChan = make(chan int)
+	ConfirmBronRezChan = make(chan int)
+	ClearBronAskChan = make(chan int)
+	ClearBronRezChan = make(chan int)
+	AptBronListAskChan = make(chan int)
+	AptBronListRezChan = make(chan []Kpu)
+	AcceptBronAskChan = make(chan int)
+	AcceptBronRezChan = make(chan int)
+	RefuseBronAskChan = make(chan int)
+	RefuseBronRezChan = make(chan int)
+	AskFriendAskChan = make(chan int)
+	AskFriendRezChan = make(chan []AccShort)
+	GetFriendsAskChan = make(chan int)
+	GetFriendsRezChan = make(chan []AccShort)
+	GetSearchFrAskChan = make(chan string)
+	GetSearchFrRezChan = make(chan []AccShort)
+	AskFriendshipAskChan = make(chan [2]int)
+	AskFriendshipRezChan = make(chan int)
+	FriendAddAskChan = make(chan [2]int)
+	FriendAddRezChan = make(chan int)
+	DeleteFrAskChan = make(chan [2]int)
+	DeleteFrRezChan = make(chan int)
+	AskMessagesAskChan = make(chan int)
+	AskMessagesRezChan = make(chan []smsg)
+	SendMessAskChan = make(chan sndm)
+	SendMessRezChan = make(chan int)
+	GetAkciiAskChan = make(chan int)
+	GetAkciiRezChan = make(chan []akkk)
+	GetAkciiIDAskChan = make(chan int)
+	GetAkciiIDRezChan = make(chan akkk)
+}
+func calculateLek(connect *sql.DB, mass *[]tmpLttrs) {
+	var mtmp tmpLttrs
+	//*************************************************
+	ft := "SELECT NAME FROM registry"
+	rows, err := connect.Query(ft)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		var kp string
+		for rows.Next() {
+			_ = rows.Scan(&kp)
+			kp = strings.TrimSpace(kp)
+			fk := strings.Split(kp, "")
+			if len(fk) > 1 {
+				fs := strings.ToUpper(fk[0])
+				flag := 0
+				for i := 0; i < len(*mass) && flag == 0; i++ {
+					if (*mass)[i].Bukva == fs {
+						(*mass)[i].kolvo1++
+						flag = 1
+					}
+				}
+				if flag == 0 {
+					mtmp.Bukva = fs
+					mtmp.kolvo1 = 1
+					mtmp.kolvo2 = 0
+					mtmp.flag = 0
+					*mass = append(*mass, mtmp)
+				}
+			}
+
+		}
+		rows.Close()
+	}
+	fmt.Println("done1")
+
+}
+func calculateDeistv(connect *sql.DB, mass *[]tmpLttrs) {
+	var mtmp tmpLttrs
+	//*************************************************
+	ft := "SELECT MNN FROM mnn"
+	rows, err := connect.Query(ft)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		var kp string
+		for rows.Next() {
+			_ = rows.Scan(&kp)
+			kp = strings.TrimSpace(kp)
+			fk := strings.Split(kp, "")
+			if len(fk) > 1 {
+				fs := strings.ToUpper(fk[0])
+				flag := 0
+				for i := 0; i < len(*mass) && flag == 0; i++ {
+					if (*mass)[i].Bukva == fs {
+						(*mass)[i].kolvo2++
+						flag = 1
+					}
+				}
+				if flag == 0 {
+					mtmp.Bukva = fs
+					mtmp.kolvo1 = 0
+					mtmp.kolvo2 = 1
+					mtmp.flag = 0
+					*mass = append(*mass, mtmp)
+
+				}
+			}
+
+		}
+		rows.Close()
+	}
+	fmt.Println("done2")
+
+}
+
+func abs(num int) int {
+	if num < 0 {
+		return num * (-1)
+	} else {
+		return num
+	}
+}
+
+func createSQLtable(connect *sql.DB, name string) {
+	_, err := connect.Exec("DROP TABLE " + name + " ;")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	_, err = connect.Exec("CREATE TABLE " + name + "( id int(20) AUTO_INCREMENT, name varchar(254),kind integer,k_id integer,PRIMARY KEY(id),INDEX IDX_" + name + "_name(name(10)) )")
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func fillFromReg(connect *sql.DB) {
+
+	var m, l, ex int
+	//*************************************************
+	ft := "SELECT id,NAME FROM registry"
+	rows, err := connect.Query(ft)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		var kp string
+		var id int
+		for rows.Next() {
+			_ = rows.Scan(&id, &kp)
+			kp = strings.TrimSpace(kp)
+			fk := strings.Split(kp, "")
+			if len(fk) > 1 {
+				fs := strings.ToUpper(fk[0])
+				ex = 0
+				for m = 0; m < 10 && ex == 0; m++ {
+					for l = 0; l < len(TempTableNames[m].set); l++ {
+						if fs == TempTableNames[m].set[l].Bukva {
+							ex = 1
+							stmt, err := connect.Prepare("INSERT " + TempTableNames[m].name + " SET name=?,kind=?,k_id=?")
+							if err != nil {
+								fmt.Println(err)
+							} else {
+								_, err = stmt.Exec(kp, 1, id)
+								if err != nil {
+									fmt.Println(err)
+								}
+								stmt.Close()
+							}
+
+						}
+					}
+
+				}
+			}
+
+		}
+		rows.Close()
+	}
+	fmt.Println("end Reg")
+
+}
+func fillFromMnn(connect *sql.DB) {
+
+	var m, l, ex int
+	//*************************************************
+	ft := "SELECT id,MNN FROM mnn"
+	rows, err := connect.Query(ft)
+	if err != nil {
+		fmt.Println(err.Error())
+	} else {
+		var kp string
+		var id int
+		for rows.Next() {
+			_ = rows.Scan(&id, &kp)
+			kp = strings.TrimSpace(kp)
+			fk := strings.Split(kp, "")
+			if len(fk) > 1 {
+				fs := strings.ToUpper(fk[0])
+				ex = 0
+				for m = 0; m < 10 && ex == 0; m++ {
+					for l = 0; l < len(TempTableNames[m].set); l++ {
+						if fs == TempTableNames[m].set[l].Bukva {
+							ex = 1
+							stmt, err := connect.Prepare("INSERT " + TempTableNames[m].name + " SET name=?,kind=?,k_id=?")
+							if err != nil {
+								fmt.Println(err)
+							}
+							_, err = stmt.Exec(kp, 2, id)
+							if err != nil {
+								fmt.Println(err)
+							}
+							stmt.Close()
+						}
+					}
+
+				}
+			}
+
+		}
+		rows.Close()
+	}
+	fmt.Println("end Mnn")
+
+}
+
+// this is %TempTables
+func createTempTables(connect *sql.DB, end chan int) {
+	var totalsum, middle, max, min int
+	var sum, ex, i, j, k int
+	var maxind, minind int
+	var l int
+	Bukvi = make([]tmpLttrs, 0)
+	calculateLek(connect, &Bukvi)
+	calculateDeistv(connect, &Bukvi)
+	totalsum = 0
+	for k := 0; k < len(Bukvi); k++ {
+		totalsum += Bukvi[k].kolvo1 + Bukvi[k].kolvo2
+	}
+	middle = totalsum / 10
+	fmt.Println("Middel:", middle)
+	TempTableNames = make([]tbln, 0)
+	for i = 10; i < 20; i++ {
+		ex = 0
+		sum = 0
+		var kkk tbln
+		kkk.id = i
+		kkk.name = "t" + strconv.Itoa(i)
+		kkk.set = make([]tmpL, 0)
+		var kku tmpL
+		k = len(Bukvi)
+		max = 0
+		//---------по максимальным------------
+		maxind = -1
+		for j = 0; j < k; j++ {
+			if Bukvi[j].kolvo1+Bukvi[j].kolvo2 > max && Bukvi[j].flag != 1 {
+				max = Bukvi[j].kolvo1 + Bukvi[j].kolvo2
+				maxind = j
+			}
+		}
+		if maxind != -1 {
+			if max > middle {
+				kku.Bukva = Bukvi[maxind].Bukva
+				kku.kolvo = Bukvi[maxind].kolvo1 + Bukvi[maxind].kolvo2
+				kkk.set = append(kkk.set, kku)
+				Bukvi[maxind].flag = 1
+
+			} else {
+				kku.Bukva = Bukvi[maxind].Bukva
+				kku.kolvo = Bukvi[maxind].kolvo1 + Bukvi[maxind].kolvo2
+				kkk.set = append(kkk.set, kku)
+				Bukvi[maxind].flag = 1
+				// добиваем
+				min = totalsum
+				minind = -1
+				for l = 0; l < k; l++ {
+					if Bukvi[l].flag != 1 {
+						if abs(middle-(Bukvi[l].kolvo1+Bukvi[l].kolvo2)) < min {
+							minind = l
+							min = abs(middle - (Bukvi[l].kolvo1 + Bukvi[l].kolvo2))
+						}
+					}
+				}
+				if minind != -1 {
+					kku.Bukva = Bukvi[minind].Bukva
+					kku.kolvo = Bukvi[minind].kolvo1 + Bukvi[minind].kolvo2
+					r := kku.kolvo
+					kkk.set = append(kkk.set, kku)
+					Bukvi[minind].flag = 1
+					sum = r + max
+					if sum < middle {
+						// забиваем остальным
+						ex = 0
+						for l = 0; l < k && ex == 0; l++ {
+							if Bukvi[l].flag != 1 {
+								sum += Bukvi[l].kolvo1 + Bukvi[l].kolvo2
+								if sum > middle {
+									ex = 1
+								}
+								kku.Bukva = Bukvi[l].Bukva
+								kku.kolvo = Bukvi[l].kolvo1 + Bukvi[l].kolvo2
+								kkk.set = append(kkk.set, kku)
+								Bukvi[l].flag = 1
+							}
+
+						}
+					}
+				} else {
+					fmt.Println("-")
+				}
+			}
+		} else {
+			fmt.Println(".")
+		}
+
+		//------------------------------------
+
+		TempTableNames = append(TempTableNames, kkk)
+		fmt.Print("+")
+	}
+	for i = 0; i < 10; i++ {
+		fmt.Print("Таблица:", TempTableNames[i].name)
+		fmt.Print(" список букв:")
+		sum = 0
+		for j = 0; j < len(TempTableNames[i].set); j++ {
+			sum += TempTableNames[i].set[j].kolvo
+			fmt.Print(" ", TempTableNames[i].set[j].Bukva, " ")
+		}
+		fmt.Println(")")
+		fmt.Println("Общее количество:", sum)
+	}
+	fmt.Println("Создание таблиц!")
+	for i = 0; i < 10; i++ {
+		createSQLtable(connect, TempTableNames[i].name)
+	}
+	fmt.Println("Заполнение таблиц!")
+	fillFromReg(connect)
+	fillFromMnn(connect)
+	end <- 1
+}
+
+func ManagerDBr3(cfg Dbcfg) {
+
+	var ex int = 0
+	var ex2 int = 0
+
+	var TimeStamp time.Time
+
+	for ex == 0 {
+		strConnect := cfg.User + ":" + cfg.Password + "@" + cfg.Transport + "(" + cfg.ServerIP + ":" + cfg.ServerPort + ")/" + cfg.DbName
+		fmt.Println(strConnect)
+		db, err := sql.Open(cfg.Kind, strConnect)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+
+				TimeStamp = time.Now().UTC()
+				ex2 = 0
+				for ex2 == 0 {
+					select {
+					case u := <-GetLekFromAptekaAsk3:
+						go func() {
+							var rez []llut
+							var un llut
+
+							rez = make([]llut, 0)
+							rows, err := db.Query("SELECT IDR,Price,Kolvo FROM nalich WHERE IDA=? LIMIT 20 OFFSET "+strconv.Itoa(u.offset)+";", strconv.Itoa(u.uid))
+							if err == nil {
+								for rows.Next() {
+									errt := rows.Scan(&un.Id, &un.Price, &un.Ostatok)
+									if errt == nil {
+										rez = append(rez, un)
+									}
+								}
+								rows.Close()
+							}
+							GetLekFromAptekaRez3 <- rez
+						}()
+					case u := <-GetOstatPrice3AskChan:
+						go func() {
+							var rez lostat
+							rez.KolvoAptek = 0
+							rez.MinPrice = 0.0
+							rows, err := db.Query("SELECT * FROM nalich WHERE IDR=? AND IDC=?;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+							if err == nil {
+								var id, idr, ida, idc, kolvo int
+								var price float32
+								var dtime time.Time
+								var min float32 = 100000.0
+
+								var counter int = 0
+								for rows.Next() {
+									errt := rows.Scan(&id, &idr, &ida, &idc, &price, &kolvo, &dtime)
+									if errt != nil {
+										fmt.Println(errt)
+									} else {
+										if kolvo > 0 {
+											counter++
+										}
+										if min > price {
+											min = price
+										}
+									}
+								}
+								rez.KolvoAptek = counter
+								rez.MinPrice = min
+								rows.Close()
+							}
+							GetOstatPrice3RezChan <- rez
+						}()
+					case u := <-GetOstatki3AskChan:
+						go func() {
+							var k []Ostt
+							var ku Ostt
+							k = make([]Ostt, 0)
+							if u.IdLek > 0 {
+								//============================
+								rows, err := db.Query("SELECT IDA,Price,Kolvo FROM nalich WHERE IDR=? AND IDC=? ;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+								if err == nil {
+									for rows.Next() {
+										errt := rows.Scan(&ku.IdApteki, &ku.Price, &ku.Kolvo)
+										if errt != nil {
+											fmt.Println(errt)
+										} else {
+											k = append(k, ku)
+										}
+									}
+								}
+								//============================
+							}
+							GetOstatki3RezChan <- k
+						}()
+
+					default:
+						ddur := time.Since(TimeStamp)
+						if int(ddur.Seconds()) >= 2 {
+							err = db.Ping()
+							if err == nil {
+								TimeStamp = time.Now().UTC()
+								//fmt.Println("+")
+							} else {
+								ex2 = 1
+							}
+						}
+						time.Sleep(20 * time.Nanosecond)
+					}
+				}
+				db.Close()
+			} else {
+				db.Close()
+			}
+
+		} else {
+			fmt.Println("some bd error")
+			fmt.Println(err.Error())
+		}
+
+	}
+}
+func ManagerDBr4(cfg Dbcfg) {
+
+	var ex int = 0
+	var ex2 int = 0
+
+	var TimeStamp time.Time
+
+	for ex == 0 {
+		strConnect := cfg.User + ":" + cfg.Password + "@" + cfg.Transport + "(" + cfg.ServerIP + ":" + cfg.ServerPort + ")/" + cfg.DbName
+		fmt.Println(strConnect)
+		db, err := sql.Open(cfg.Kind, strConnect)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+
+				TimeStamp = time.Now().UTC()
+				ex2 = 0
+				for ex2 == 0 {
+					select {
+					case u := <-GetLekFromAptekaAsk4:
+						go func() {
+							var rez []llut
+							var un llut
+
+							rez = make([]llut, 0)
+							rows, err := db.Query("SELECT IDR,Price,Kolvo FROM nalich WHERE IDA=? LIMIT 20 OFFSET "+strconv.Itoa(u.offset)+";", strconv.Itoa(u.uid))
+							if err == nil {
+								for rows.Next() {
+									errt := rows.Scan(&un.Id, &un.Price, &un.Ostatok)
+									if errt == nil {
+										rez = append(rez, un)
+									}
+								}
+								rows.Close()
+							}
+							GetLekFromAptekaRez4 <- rez
+						}()
+					case u := <-GetOstatPrice4AskChan:
+						go func() {
+							var rez lostat
+							rez.KolvoAptek = 0
+							rez.MinPrice = 0.0
+							rows, err := db.Query("SELECT * FROM nalich WHERE IDR=? AND IDC=?;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+							if err == nil {
+								var id, idr, ida, idc, kolvo int
+								var price float32
+								var dtime time.Time
+								var min float32 = 100000.0
+
+								var counter int = 0
+								for rows.Next() {
+									errt := rows.Scan(&id, &idr, &ida, &idc, &price, &kolvo, &dtime)
+									if errt != nil {
+										fmt.Println(errt)
+									} else {
+										if kolvo > 0 {
+											counter++
+										}
+										if min > price {
+											min = price
+										}
+									}
+								}
+								rez.KolvoAptek = counter
+								rez.MinPrice = min
+								rows.Close()
+							}
+							GetOstatPrice4RezChan <- rez
+						}()
+					case u := <-GetOstatki4AskChan:
+						go func() {
+							var k []Ostt
+							var ku Ostt
+							k = make([]Ostt, 0)
+							if u.IdLek > 0 {
+								//============================
+								rows, err := db.Query("SELECT IDA,Price,Kolvo FROM nalich WHERE IDR=? AND IDC=?;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+								if err == nil {
+									for rows.Next() {
+										errt := rows.Scan(&ku.IdApteki, &ku.Price, &ku.Kolvo)
+										if errt != nil {
+											fmt.Println(errt)
+										} else {
+											k = append(k, ku)
+										}
+									}
+									rows.Close()
+								}
+								//============================
+							}
+							GetOstatki4RezChan <- k
+						}()
+
+					default:
+						ddur := time.Since(TimeStamp)
+						if int(ddur.Seconds()) >= 2 {
+							err = db.Ping()
+							if err == nil {
+								TimeStamp = time.Now().UTC()
+								//fmt.Println("+")
+							} else {
+								ex2 = 1
+							}
+						}
+						time.Sleep(20 * time.Nanosecond)
+					}
+				}
+				db.Close()
+			} else {
+				db.Close()
+			}
+
+		} else {
+			fmt.Println("some bd error")
+			fmt.Println(err.Error())
+		}
+
+	}
+}
+
+func ManagerDBr2(cfg Dbcfg) {
+
+	var ex int = 0
+	var ex2 int = 0
+
+	var TimeStamp time.Time
+
+	for ex == 0 {
+		strConnect := cfg.User + ":" + cfg.Password + "@" + cfg.Transport + "(" + cfg.ServerIP + ":" + cfg.ServerPort + ")/" + cfg.DbName
+		fmt.Println(strConnect)
+		db, err := sql.Open(cfg.Kind, strConnect)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+
+				TimeStamp = time.Now().UTC()
+				ex2 = 0
+				for ex2 == 0 {
+					select {
+					case u := <-GetLekFromAptekaAsk2:
+						go func() {
+							var rez []llut
+							var un llut
+
+							rez = make([]llut, 0)
+							rows, err := db.Query("SELECT IDR,Price,Kolvo FROM nalich WHERE IDA=? LIMIT 20 OFFSET "+strconv.Itoa(u.offset)+";", strconv.Itoa(u.uid))
+							if err == nil {
+								for rows.Next() {
+									errt := rows.Scan(&un.Id, &un.Price, &un.Ostatok)
+									if errt == nil {
+										rez = append(rez, un)
+									}
+								}
+								rows.Close()
+							}
+							GetLekFromAptekaRez2 <- rez
+						}()
+					case u := <-GetOstatPrice2AskChan:
+						go func() {
+							var rez lostat
+							rez.KolvoAptek = 0
+							rez.MinPrice = 0.0
+							rows, err := db.Query("SELECT * FROM nalich WHERE IDR=? AND IDC=?;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+							if err == nil {
+								var id, idr, ida, idc, kolvo int
+								var price float32
+								var dtime time.Time
+								var min float32 = 100000.0
+
+								var counter int = 0
+								for rows.Next() {
+									errt := rows.Scan(&id, &idr, &ida, &idc, &price, &kolvo, &dtime)
+									if errt != nil {
+										fmt.Println(errt)
+									} else {
+										if kolvo > 0 {
+											counter++
+										}
+										if min > price {
+											min = price
+										}
+									}
+								}
+								rez.KolvoAptek = counter
+								rez.MinPrice = min
+								rows.Close()
+							}
+							GetOstatPrice2RezChan <- rez
+						}()
+					case u := <-GetOstatki2AskChan:
+						go func() {
+							var k []Ostt
+							var ku Ostt
+							k = make([]Ostt, 0)
+							if u.IdLek > 0 {
+								//============================
+								rows, err := db.Query("SELECT IDA,Price,Kolvo FROM nalich WHERE IDR=? AND IDC=? ;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+								if err == nil {
+									for rows.Next() {
+										errt := rows.Scan(&ku.IdApteki, &ku.Price, &ku.Kolvo)
+										if errt != nil {
+											fmt.Println(errt)
+										} else {
+											k = append(k, ku)
+										}
+									}
+									rows.Close()
+								}
+								//============================
+							}
+							GetOstatki2RezChan <- k
+						}()
+
+					default:
+						ddur := time.Since(TimeStamp)
+						if int(ddur.Seconds()) >= 2 {
+							err = db.Ping()
+							if err == nil {
+								TimeStamp = time.Now().UTC()
+								//fmt.Println("+")
+							} else {
+								ex2 = 1
+							}
+						}
+						time.Sleep(20 * time.Nanosecond)
+					}
+				}
+				db.Close()
+			} else {
+				db.Close()
+			}
+
+		} else {
+			fmt.Println("some bd error")
+			fmt.Println(err.Error())
+		}
+
+	}
+}
+
+func ManagerDBr1(cfg Dbcfg) {
+
+	var ex int = 0
+	var ex2 int = 0
+
+	var TimeStamp time.Time
+
+	for ex == 0 {
+		strConnect := cfg.User + ":" + cfg.Password + "@" + cfg.Transport + "(" + cfg.ServerIP + ":" + cfg.ServerPort + ")/" + cfg.DbName
+		fmt.Println(strConnect)
+		db, err := sql.Open(cfg.Kind, strConnect)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+
+				TimeStamp = time.Now().UTC()
+				ex2 = 0
+				for ex2 == 0 {
+					select {
+					case u := <-GetLekFromAptekaAsk1:
+						go func() {
+							var rez []llut
+							var un llut
+
+							rez = make([]llut, 0)
+							rows, err := db.Query("SELECT IDR,Price,Kolvo FROM nalich WHERE IDA=? LIMIT 20 OFFSET "+strconv.Itoa(u.offset)+";", strconv.Itoa(u.uid))
+							if err == nil {
+								for rows.Next() {
+									errt := rows.Scan(&un.Id, &un.Price, &un.Ostatok)
+									if errt == nil {
+										rez = append(rez, un)
+									}
+								}
+								rows.Close()
+							}
+							GetLekFromAptekaRez1 <- rez
+						}()
+					case u := <-GetOstatPrice1AskChan:
+						go func() {
+							var rez lostat
+							rez.KolvoAptek = 0
+							rez.MinPrice = 0.0
+							rows, err := db.Query("SELECT * FROM nalich WHERE IDR=? AND IDC=?;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+							if err == nil {
+								var id, idr, ida, idc, kolvo int
+								var price float32
+								var dtime []uint8
+								var min float32 = 100000.0
+
+								var counter int = 0
+								for rows.Next() {
+									errt := rows.Scan(&id, &idr, &ida, &idc, &price, &kolvo, &dtime)
+									if errt != nil {
+										fmt.Println(errt)
+									} else {
+										if kolvo > 0 {
+											counter++
+										}
+										if min > price {
+											min = price
+										}
+									}
+								}
+								rez.KolvoAptek = counter
+								rez.MinPrice = min
+								rows.Close()
+							}
+							GetOstatPrice1RezChan <- rez
+						}()
+					case u := <-GetOstatki1AskChan:
+						go func() {
+							var k []Ostt
+							var ku Ostt
+							k = make([]Ostt, 0)
+							if u.IdLek > 0 {
+								//============================
+								rows, err := db.Query("SELECT IDA,Price,Kolvo FROM nalich WHERE IDR=? AND IDC=? ;", strconv.Itoa(u.IdLek), strconv.Itoa(u.IdCity))
+								if err == nil {
+									for rows.Next() {
+										errt := rows.Scan(&ku.IdApteki, &ku.Price, &ku.Kolvo)
+										if errt != nil {
+											fmt.Println(errt)
+										} else {
+											k = append(k, ku)
+										}
+									}
+									rows.Close()
+								}
+								//============================
+							}
+							GetOstatki1RezChan <- k
+						}()
+
+					default:
+						ddur := time.Since(TimeStamp)
+						if int(ddur.Seconds()) >= 2 {
+							err = db.Ping()
+							if err == nil {
+								TimeStamp = time.Now().UTC()
+								//fmt.Println("+")
+							} else {
+								ex2 = 1
+							}
+						}
+						time.Sleep(20 * time.Nanosecond)
+					}
+				}
+				db.Close()
+			} else {
+				db.Close()
+			}
+
+		} else {
+			fmt.Println("some bd error")
+			fmt.Println(err.Error())
+		}
+
+	}
+}
+func ManagerDB(cfg Dbcfg) {
+	var rez AccM
+	var ex int = 0
+	var ex2 int = 0
+	var i, j int
+	var TmpTablesFlag bool
+	var TimeStamp time.Time
+	var chanTmp chan int
+	chanTmp = make(chan int)
+	ini_channels()
+
+	for ex == 0 {
+		strConnect := cfg.User + ":" + cfg.Password + "@" + cfg.Transport + "(" + cfg.ServerIP + ":" + cfg.ServerPort + ")/" + cfg.DbName
+		fmt.Println(strConnect)
+		db, err := sql.Open(cfg.Kind, strConnect)
+		if err == nil {
+			err = db.Ping()
+			if err == nil {
+				TmpTablesFlag = false
+				go createTempTables(db, chanTmp)
+				//*************************************************
+				TimeStamp = time.Now().UTC()
+				ex2 = 0
+				for ex2 == 0 {
+					select {
+					case _ = <-chanTmp:
+						TmpTablesFlag = true
+					case _ = <-GetFlagAskChan:
+						if TmpTablesFlag == true {
+							GetFlagRezChan <- 1
+						} else {
+							GetFlagRezChan <- 0
+						}
+					case u := <-GetAkciiIDAskChan:
+						go func() {
+							var t akkk
+							var z int = -1
+							rows, err := db.Query("SELECT * FROM akcii WHERE flag= 1 AND id=" + strconv.Itoa(u) + ";")
+							if err == nil {
+								for rows.Next() && z == -1 {
+									e := rows.Scan(&t.Id, &t.Short, &t.Content, &z)
+									if e != nil {
+										fmt.Println(e)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							GetAkciiIDRezChan <- t
+						}()
+					case _ = <-GetAkciiAskChan:
+						go func() {
+							var t akkk
+							var r []akkk
+							var z int
+							r = make([]akkk, 0)
+							rows, err := db.Query("SELECT * FROM akcii WHERE flag= 1 ;")
+							if err == nil {
+								for rows.Next() {
+									e := rows.Scan(&t.Id, &t.Short, &t.Content, &z)
+									if e == nil {
+										r = append(r, t)
+									} else {
+										fmt.Println(e)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							GetAkciiRezChan <- r
+						}()
+					case x := <-SendMessAskChan:
+						go func() {
+							var tm time.Time
+							var r int = 0
+							tm = time.Now().UTC().Local()
+							mdate := tm.Year()*10000 + int(tm.Month())*100 + tm.Day()
+							mtime := tm.Hour()*10000 + tm.Minute()*100 + tm.Second()
+							stmt, err := db.Prepare("INSERT messcont SET idFrom=?,idTo=?,time=?,date=?,mess=?")
+							if err == nil {
+								_, err := stmt.Exec(x.id, -1, mtime, mdate, x.mess)
+								if err == nil {
+									r = 1
+								} else {
+									r = -2
+								}
+								stmt.Close()
+							} else {
+								r = -3
+							}
+							SendMessRezChan <- r
+						}()
+					case u := <-AskMessagesAskChan:
+						go func() {
+							var du smsg
+							var ru []smsg
+							ru = make([]smsg, 0)
+							fmt.Println("User:", u)
+							rows, err := db.Query("SELECT idFrom,idTo,time,date,mess FROM messcont WHERE idFrom=" + strconv.Itoa(u) + " OR idTo=" + strconv.Itoa(u) + " ORDER BY date DESC,time ASC;")
+							if err == nil {
+								for rows.Next() {
+									e := rows.Scan(&du.IdFrom, &du.IdTo, &du.Time, &du.Date, &du.Mess)
+									if e == nil {
+										ru = append(ru, du)
+									} else {
+										fmt.Println(e)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							AskMessagesRezChan <- ru
+						}()
+					case u := <-DeleteFrAskChan:
+						go func() {
+							stmt, err1 := db.Prepare("DELETE FROM friends WHERE userid=? AND fr_id=? ;")
+							if err1 == nil {
+								_, _ = stmt.Exec(u[0], u[1])
+
+								stmt.Close()
+							}
+							stmt, err1 = db.Prepare("DELETE FROM friends WHERE userid=? AND fr_id=? ;")
+							if err1 == nil {
+								_, _ = stmt.Exec(u[1], u[0])
+
+								stmt.Close()
+							}
+							DeleteFrRezChan <- 1
+						}()
+					case u := <-FriendAddAskChan:
+						go func() {
+							var r int = 0
+							if u[0] != u[1] {
+								stmt, err := db.Prepare("INSERT friends SET userid=?,fr_id=?")
+								if err == nil {
+									_, err := stmt.Exec(u[1], u[0])
+									if err == nil {
+										r = 1
+									} else {
+										r = -2
+									}
+									stmt.Close()
+								} else {
+									r = -3
+								}
+								if r == 1 {
+									stmt, err = db.Prepare("INSERT friends SET userid=?,fr_id=?")
+									if err == nil {
+										_, err := stmt.Exec(u[0], u[1])
+										if err == nil {
+											r = 1
+										} else {
+											r = -2
+										}
+										stmt.Close()
+									} else {
+										r = -3
+									}
+								}
+								stmt, err1 := db.Prepare("DELETE FROM askfriendship WHERE idincome=? AND idask=? ;")
+								if err1 == nil {
+									_, _ = stmt.Exec(u[0], u[1])
+
+									stmt.Close()
+								} else {
+									fmt.Println(err1)
+								}
+								stmt, err1 = db.Prepare("DELETE FROM askfriendship WHERE idincome=? AND idask=? ;")
+								if err1 == nil {
+									_, _ = stmt.Exec(u[1], u[0])
+
+									stmt.Close()
+								} else {
+									fmt.Println(err1)
+								}
+							}
+
+							FriendAddRezChan <- r
+						}()
+					case u := <-AskFriendshipAskChan:
+						go func() {
+							if u[1] != u[0] {
+								stmt, err := db.Prepare("INSERT askfriendship SET idincome=?,idask=?")
+								if err == nil {
+									res, err := stmt.Exec(u[1], u[0])
+									if err == nil {
+										id, err := res.LastInsertId()
+										if err == nil {
+											AskFriendshipRezChan <- int(id)
+										} else {
+											AskFriendshipRezChan <- -1
+										}
+
+									} else {
+										AskFriendshipRezChan <- -2
+									}
+									stmt.Close()
+								} else {
+									AskFriendshipRezChan <- -3
+								}
+							} else {
+								AskFriendshipRezChan <- -4
+							}
+
+						}()
+					case u := <-GetSearchFrAskChan:
+						go func() {
+							a := strings.Split(u, " ")
+							var ki AccShort
+							var ti []AccShort
+							ti = make([]AccShort, 0)
+							if len(a) > 1 {
+								rows, err := db.Query("SELECT id,name,family,kind FROM user WHERE family LIKE '" + a[0] + "%' AND name LIKE '" + a[1] + "%' ;")
+								if err == nil {
+									for rows.Next() {
+										e := rows.Scan(&ki.Id, &ki.Name, &ki.Family, &ki.Kind)
+										if e == nil {
+											ti = append(ti, ki)
+										}
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+								rows, err = db.Query("SELECT id,name,family,kind FROM user WHERE family LIKE '" + a[1] + "%' AND name LIKE '" + a[0] + "%' ;")
+								if err == nil {
+									for rows.Next() {
+										e := rows.Scan(&ki.Id, &ki.Name, &ki.Family)
+										if e == nil {
+											ti = append(ti, ki)
+										}
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							} else {
+								//one
+								rows, err := db.Query("SELECT id,name,family FROM user WHERE family LIKE '" + a[0] + "%' OR name LIKE '" + a[0] + "%' ;")
+								if err == nil {
+									for rows.Next() {
+										e := rows.Scan(&ki.Id, &ki.Name, &ki.Family)
+										if e == nil {
+											ti = append(ti, ki)
+										}
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+
+							GetSearchFrRezChan <- ti
+						}()
+					case u := <-AskFriendAskChan:
+						go func() {
+							var ttk AccShort
+							var rez []AccShort
+							rez = make([]AccShort, 0)
+							rows, err := db.Query("SELECT idask FROM askfriendship WHERE idincome=" + strconv.Itoa(u) + " ;")
+							if err == nil {
+								for rows.Next() {
+									errR := rows.Scan(&ttk.Id)
+									if errR == nil {
+										rez = append(rez, ttk)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							for i := 0; i < len(rez); i++ {
+								rows, err = db.Query("SELECT name,family FROM user WHERE id=" + strconv.Itoa(rez[i].Id) + " ;")
+								if err == nil {
+									for rows.Next() {
+										_ = rows.Scan(&rez[i].Name, &rez[i].Family)
+
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							AskFriendRezChan <- rez
+						}()
+					case u := <-GetFriendsAskChan:
+						go func() {
+							var ttk AccShort
+							var rez []AccShort
+							rez = make([]AccShort, 0)
+							rows, err := db.Query("SELECT fr_id FROM friends WHERE userid=" + strconv.Itoa(u) + " ;")
+							if err == nil {
+								for rows.Next() {
+									errR := rows.Scan(&ttk.Id)
+									if errR == nil {
+										rez = append(rez, ttk)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							for i := 0; i < len(rez); i++ {
+								rows, err = db.Query("SELECT name,family FROM user WHERE id=" + strconv.Itoa(rez[i].Id) + " ;")
+								if err == nil {
+									for rows.Next() {
+										_ = rows.Scan(&rez[i].Name, &rez[i].Family)
+
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							GetFriendsRezChan <- rez
+						}()
+					case u := <-RefuseBronAskChan:
+						go func() {
+							var ru int
+							str := "UPDATE bron SET "
+							str += "state=3 "
+							str += "WHERE id =" + strconv.Itoa(u) + " ;"
+							stm, err := db.Prepare(str)
+							if err == nil {
+								_, err2 := stm.Exec()
+								if err2 == nil {
+									ru = 1
+								} else {
+									ru = -1
+								}
+								stm.Close()
+							} else {
+								ru = -2
+							}
+							RefuseBronRezChan <- ru
+						}()
+					case u := <-AcceptBronAskChan:
+						go func() {
+							var ru int
+							str := "UPDATE bron SET "
+							str += "state=2 "
+							str += "WHERE id =" + strconv.Itoa(u) + " ;"
+							stm, err := db.Prepare(str)
+							if err == nil {
+								_, err2 := stm.Exec()
+								if err2 == nil {
+									ru = 1
+								} else {
+									ru = -1
+								}
+								stm.Close()
+							} else {
+								ru = -2
+							}
+							AcceptBronRezChan <- ru
+						}()
+					case u := <-AptBronListAskChan:
+						go func() {
+							var lulu []Kpu
+							var lu Kpu
+							var fu Ddu
+							//var id, norder int
+							rows, err := db.Query("SELECT id,Nored,iduser FROM myorder WHERE idapt=" + strconv.Itoa(u) + " AND status<3 ;")
+							if err == nil {
+								for rows.Next() {
+									errR := rows.Scan(&lu.Id, &lu.Norder, &lu.IdUser)
+									if errR == nil {
+										lu.Sets = make([]Ddu, 0)
+										lulu = append(lulu, lu)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+
+							for i := 0; i < len(lulu); i++ {
+								rows, err = db.Query("SELECT id,lekid,kolvo,price,state FROM bron WHERE idorder=" + strconv.Itoa(lulu[i].Id) + " ;")
+								if err == nil {
+									for rows.Next() {
+										errR := rows.Scan(&fu.BronId, &fu.LekId, &fu.Kolvo, &fu.Price, &fu.Status)
+										if errR == nil {
+											lulu[i].Sets = append(lulu[i].Sets, fu)
+										}
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							for j := 0; j < len(lulu); j++ {
+								rows, err = db.Query("SELECT name,tel FROM user WHERE id=" + strconv.Itoa(lulu[j].IdUser) + " ;")
+								if err == nil {
+									for rows.Next() {
+										_ = rows.Scan(&lulu[j].Name, &lulu[j].Tel)
+
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							for i = 0; i < len(lulu); i++ {
+								for j = 0; j < len(lulu[i].Sets); j++ {
+									rows, err = db.Query("SELECT FABRID,NAME FROM registry WHERE id=" + strconv.Itoa(lulu[i].Sets[j].LekId) + " ;")
+									if err == nil {
+										var fabrid int
+										for rows.Next() {
+											errR := rows.Scan(&fabrid, &lulu[i].Sets[j].Lek)
+											if errR == nil {
+												rowd, errd := db.Query("SELECT FABR FROM fabr WHERE id=" + strconv.Itoa(fabrid) + " ;")
+												if errd == nil {
+													for rowd.Next() {
+														_ = rowd.Scan(&lulu[i].Sets[j].Proizv)
+													}
+													rowd.Close()
+												}
+											}
+										}
+										rows.Close()
+									}
+								}
+							}
+							AptBronListRezChan <- lulu
+
+						}()
+					case u := <-ClearBronAskChan:
+						go func() {
+							var idOrder int = -1
+							rows, err := db.Query("SELECT idorder FROM bron WHERE id=" + strconv.Itoa(u) + " ;")
+							if err == nil {
+								for rows.Next() && idOrder == -1 {
+									_ = rows.Scan(&idOrder)
+								}
+								rows.Close()
+							}
+							stmt, err1 := db.Prepare("DELETE FROM bron WHERE id=? ;")
+							if err1 == nil {
+								_, err2 := stmt.Exec(u)
+								if err2 == nil {
+									rows, err = db.Query("SELECT state FROM bron WHERE idorder=" + strconv.Itoa(idOrder) + " ;")
+									if err == nil {
+										f := -1
+										status := 0
+										for rows.Next() {
+											ferr := rows.Scan(&status)
+											if ferr == nil {
+												switch status {
+												case 0:
+													status = -1
+												case 1:
+												case 2:
+												case 3:
+												}
+												f = 1
+											}
+										}
+										rows.Close()
+										if status != -1 {
+											str := "UPDATE myorder SET "
+											str += "status=2 "
+											str += "WHERE id =" + strconv.Itoa(idOrder) + " ;"
+											stm, err := db.Prepare(str)
+											if err == nil {
+												_, _ = stm.Exec()
+											}
+											stm.Close()
+										}
+										if f == -1 {
+											stmu, erru := db.Prepare("DELETE FROM myorder WHERE id=? ;")
+											if erru == nil {
+												_, _ = stmu.Exec(idOrder)
+												stmu.Close()
+											}
+											ClearBronRezChan <- 2
+										} else {
+											ClearBronRezChan <- 1
+										}
+									} else {
+										ClearBronRezChan <- -5
+									}
+
+								} else {
+
+									ClearBronRezChan <- -2
+								}
+								stmt.Close()
+							} else {
+
+								ClearBronRezChan <- -3
+							}
+						}()
+					case u := <-ConfirmBronAskChan:
+						go func() {
+							var ru int
+							str := "UPDATE bron SET "
+							str += "state=1 "
+							str += "WHERE id =" + strconv.Itoa(u) + " ;"
+							stm, err := db.Prepare(str)
+							if err == nil {
+								_, err2 := stm.Exec()
+								if err2 == nil {
+									ru = 1
+								} else {
+									ru = -1
+								}
+								stm.Close()
+							} else {
+								ru = -2
+							}
+							var idorder int = -1
+							rows, err := db.Query("SELECT idorder FROM bron WHERE id=" + strconv.Itoa(u) + " ;")
+							if err == nil {
+								for rows.Next() && idorder == -1 {
+									_ = rows.Scan(&idorder)
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							rows, err = db.Query("SELECT idorder FROM bron WHERE idorder=" + strconv.Itoa(u) + " AND state=1 ;")
+							f := -1
+							if err == nil {
+								for rows.Next() && f == -1 {
+									_ = rows.Scan(&f)
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							if f == -1 {
+								str = "UPDATE myorder SET "
+								str += "status=2 "
+								str += "WHERE id =" + strconv.Itoa(idorder) + " ;"
+								stm, err := db.Prepare(str)
+								if err == nil {
+									_, _ = stm.Exec()
+								}
+								stm.Close()
+							}
+							ConfirmBronRezChan <- ru
+						}()
+					case u := <-GetBronListAskChan:
+						go func() {
+							var lulu []Kpp
+							var lu Kpp
+							var fu Ddr
+							//var id, norder int
+							rows, err := db.Query("SELECT id,Nored,idapt FROM myorder WHERE iduser=" + strconv.Itoa(u) + " AND status<3 ;")
+							if err == nil {
+								for rows.Next() {
+									errR := rows.Scan(&lu.Id, &lu.Norder, &lu.IdApt)
+									if errR == nil {
+										lu.Sets = make([]Ddr, 0)
+										lulu = append(lulu, lu)
+									}
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							//var lekid, kolvo, state int
+							//var price float32
+							for i := 0; i < len(lulu); i++ {
+								rows, err = db.Query("SELECT id,lekid,kolvo,price,state FROM bron WHERE idorder=" + strconv.Itoa(lulu[i].Id) + " ;")
+								if err == nil {
+									for rows.Next() {
+										errR := rows.Scan(&fu.BronId, &fu.LekId, &fu.Kolvo, &fu.Price, &fu.Status)
+										if errR == nil {
+											lulu[i].Sets = append(lulu[i].Sets, fu)
+										}
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							for j := 0; j < len(lulu); j++ {
+								rows, err = db.Query("SELECT id_net,address FROM apteca WHERE uid=" + strconv.Itoa(lulu[j].IdApt) + " ;")
+								if err == nil {
+									var id_net int
+									for rows.Next() {
+										errR := rows.Scan(&id_net, &lulu[j].Address)
+										if errR == nil {
+											rowd, errd := db.Query("SELECT name FROM aptnet WHERE id=" + strconv.Itoa(id_net) + " ;")
+											if errd == nil {
+												for rowd.Next() {
+													_ = rowd.Scan(&lulu[j].NetName)
+												}
+												rowd.Close()
+											}
+										}
+									}
+									rows.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							for i = 0; i < len(lulu); i++ {
+								for j = 0; j < len(lulu[i].Sets); j++ {
+									rows, err = db.Query("SELECT MNNID,NAME FROM registry WHERE id=" + strconv.Itoa(lulu[i].Sets[j].LekId) + " ;")
+									if err == nil {
+										var mnnid int
+										for rows.Next() {
+											errR := rows.Scan(&mnnid, &lulu[i].Sets[j].Lek)
+											if errR == nil {
+												rowd, errd := db.Query("SELECT MNN FROM mnn WHERE id=" + strconv.Itoa(mnnid) + " ;")
+												if errd == nil {
+													for rowd.Next() {
+														_ = rowd.Scan(&lulu[i].Sets[j].Deistv)
+													}
+													rowd.Close()
+												}
+											}
+										}
+										rows.Close()
+									}
+								}
+							}
+							GetBronListRezChan <- lulu
+						}()
+					case u := <-AddBronAskChan:
+						go func() {
+							var r int64 = -1
+							rows, err := db.Query("SELECT id FROM myorder WHERE iduser=" + strconv.Itoa(u.id_user) + " AND idapt=" + strconv.Itoa(u.id_apt) + " AND status=1 ;")
+							if err == nil {
+								for rows.Next() && r == -1 {
+									_ = rows.Scan(&r)
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							if r == -1 {
+								stmt, err := db.Prepare("INSERT myorder SET Nored=?,iduser=?,idapt=?,status=?")
+								if err == nil {
+									norder := makeTimestamp()
+									fmt.Println("Norder:", norder)
+									res, erru := stmt.Exec(norder, u.id_user, u.id_apt, 1)
+									if erru == nil {
+										r, _ = res.LastInsertId()
+									} else {
+										fmt.Println(erru)
+									}
+									stmt.Close()
+								} else {
+									fmt.Println(err)
+								}
+							}
+							var id int64 = 0
+							stmt, err := db.Prepare("INSERT bron SET idorder=?,lekid=?,userid=?,aptid=?,kolvo=?,price=?,state=?")
+							if err == nil {
+								var price float64
+								price, _ = strconv.ParseFloat(u.price, 64)
+								res, err := stmt.Exec(r, u.id_lek, u.id_user, u.id_apt, u.kolvo, price, 0)
+								if err == nil {
+									id, _ = res.LastInsertId()
+								} else {
+									fmt.Println("==>", err)
+								}
+								stmt.Close()
+							} else {
+								fmt.Println("---->>>>", err)
+							}
+							AddBronRezChan <- int(id)
+						}()
+					case x := <-AddAshortAskChan:
+						go func() {
+							stmt, err := db.Prepare("INSERT apteca SET uid=?,address=?,FIOZ=?,tel=?")
+							if err == nil {
+								res, err := stmt.Exec(x.uid, x.address, x.FIOZ, x.tel)
+								if err == nil {
+									id, err := res.LastInsertId()
+									if err == nil {
+										AddAshortRezChan <- int(id)
+									} else {
+										AddAshortRezChan <- -1
+									}
+								} else {
+									AddAshortRezChan <- -2
+								}
+								stmt.Close()
+							} else {
+								AddAshortRezChan <- -3
+							}
+						}()
+					case u := <-GetUidAptekaAskChan:
+						go func() {
+							var r int = 0
+							rows, err := db.Query("SELECT uid FROM apteca WHERE id=" + strconv.Itoa(u) + " ;")
+							if err == nil {
+								for rows.Next() && r == 0 {
+									_ = rows.Scan(&r)
+								}
+								rows.Close()
+							}
+							GetUidAptekaRezChan <- r
+						}()
+					case fu := <-FillAptekInfoAskChan:
+						go func() {
+							var gt []llu
+							gt = make([]llu, 0)
+							var dt llu
+							for i := 0; i < len(fu); i++ {
+								/*
+																	type llu struct {
+										Id      int
+										Name    string
+										Deistv  string
+										Proizv  string
+										Price   float32
+										Ostatok int
+									}
+									type llut struct {
+										Id      int
+										Price   float32
+										Ostatok int
+									}
+								*/
+								dt.Id = fu[i].Id
+								dt.Price = fu[i].Price
+								dt.Ostatok = fu[i].Ostatok
+								var fabrid, mnnid int
+								z := 0
+								rows, err := db.Query("SELECT MNNID,FABRID,NAME FROM registry WHERE id=" + strconv.Itoa(fu[i].Id) + " ;")
+								if err == nil {
+									for rows.Next() && z == 0 {
+										_ = rows.Scan(&mnnid, &fabrid, &dt.Name)
+										z = 1
+									}
+									rows.Close()
+								}
+								rows, err = db.Query("SELECT MNN FROM mnn WHERE id=" + strconv.Itoa(mnnid) + " ;")
+								if err == nil {
+									z = 0
+									for rows.Next() && z == 0 {
+										_ = rows.Scan(&dt.Deistv)
+										z = 1
+									}
+									rows.Close()
+								}
+								rows, err = db.Query("SELECT FABR FROM fabr WHERE id=" + strconv.Itoa(fabrid) + " ;")
+								if err == nil {
+									z = 0
+									for rows.Next() && z == 0 {
+										_ = rows.Scan(&dt.Proizv)
+										z = 1
+									}
+									rows.Close()
+								}
+								gt = append(gt, dt)
+
+							}
+							FillAptekInfoRezChan <- gt
+						}()
+					case u := <-CheckMaxAskChan:
+						go func() {
+							var maxId int = 0
+							rows, err := db.Query("SELECT MAX(id) FROM " + u + " ;")
+							if err == nil {
+								for rows.Next() {
+									_ = rows.Scan(&maxId)
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							CheckMaxRezChan <- maxId
+						}()
+					case u := <-TakeLekKitAskChan:
+						go func() {
+							var unit llt
+							var mset []llt
+							mset = make([]llt, 0)
+							rows, err := db.Query("SELECT id,MNNID,FABRID,NAME FROM registry WHERE id>" + strconv.Itoa(u) + " LIMIT " + strconv.Itoa(SizeSet) + " ;")
+							if err == nil {
+								var mnnid, fabrid int
+								for rows.Next() {
+									_ = rows.Scan(&unit.Id, &mnnid, &fabrid, &unit.Name)
+									rowd, errd := db.Query("SELECT MNN FROM mnn WHERE id=" + strconv.Itoa(mnnid) + " ;")
+									if errd == nil {
+										for rowd.Next() {
+											_ = rowd.Scan(&unit.Deistv)
+										}
+										rowd.Close()
+									} else {
+										fmt.Println(errd)
+									}
+									rowu, erru := db.Query("SELECT FABR FROM fabr WHERE id=" + strconv.Itoa(fabrid) + " ;")
+									if erru == nil {
+										for rowu.Next() {
+											_ = rowu.Scan(&unit.Proizv)
+										}
+										rowu.Close()
+									} else {
+										fmt.Println(erru)
+									}
+									mset = append(mset, unit)
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							TakeLekKitRezChan <- mset
+						}()
+					case u := <-FromCityAptekAskChan:
+						go func() {
+							var zrez []AptInfoShort
+							zrez = make([]AptInfoShort, 0)
+							if err == nil {
+								rows, errM := db.Query("SELECT id,uid,id_net,address,tel,about,lat,lng FROM apteca WHERE idCity=" + strconv.Itoa(u) + " ;")
+								if errM == nil {
+									var unit AptInfoShort
+									for rows.Next() {
+										_ = rows.Scan(&unit.Id_apt, &unit.Uid, &unit.Id_net, &unit.Address, &unit.Tel, &unit.AboutAptek, &unit.Lat, &unit.Lng)
+										zrez = append(zrez, unit)
+									}
+									rows.Close()
+									tut := GetNetworks(db)
+									for i := 0; i < len(zrez); i++ {
+										s := 0
+										for j := 0; j < len(tut) && s == 0; j++ {
+											fmt.Println(zrez[i].Id_net, "#", tut[j].id)
+											if zrez[i].Id_net == tut[j].id {
+												zrez[i].NetName = tut[j].name
+												fmt.Println("===============Name network:", tut[j].name)
+												s = 1
+											}
+										}
+									}
+								} else {
+									fmt.Println(errM)
+								}
+							}
+							FromCityAptekRezChan <- zrez
+						}()
+
+					case a := <-AptecaInfoSetAskChan:
+						go func() {
+							var ru int = 0
+							//UPDATE user SET name='xxx',family='yyyy' WHERE id =7000;
+							str := "UPDATE apteca SET "
+							str += "address='" + a.Address + "',"
+							str += "FIOZ='" + a.FioZ + "',"
+							str += "tel='" + a.Tel + "',"
+							str += "doptel='" + a.TelExtra + "',"
+
+							for y := 0; y < 7; y++ {
+								str += "d" + strconv.Itoa(y+1) + "=" + strconv.Itoa(int(a.Grafik[y])) + ", "
+							}
+							for y := 0; y < 7; y++ {
+								str += "t" + strconv.Itoa(y+1) + "='" + strconv.Itoa(int(a.TimeW[y][0])) + "/" + strconv.Itoa(int(a.TimeW[y][1])) + "', "
+							}
+							str += "dopgraf='" + a.AboutGrafik + "',"
+							str += "otdels='" + a.Otdels + "',"
+							str += "about='" + a.AboutAptek + "',"
+							str += "INN='" + a.INN + "',"
+							str += "KPP='" + a.KPP + "',"
+							str += "OGRN='" + a.OGRN + "',"
+							str += "OKPO='" + a.OKPO + "',"
+							str += "Uraddress='" + a.UrAdres + "' "
+							str += "WHERE uid =" + strconv.Itoa(a.Id_apt) + " ;"
+							stm, err := db.Prepare(str)
+							if err == nil {
+								_, err2 := stm.Exec()
+								if err2 == nil {
+									ru = 1
+								} else {
+									ru = -1
+								}
+								stm.Close()
+							} else {
+								ru = -2
+							}
+
+							AptecaInfoSetRezChan <- ru
+						}()
+					case u := <-AptecaInfoAskChan:
+						go func() {
+							var r AptInfo
+							var id, uid int
+							id = 0
+							//						var descr, address, fioz, tel string
+							rows, err := db.Query("SELECT * FROM apteca WHERE uid='" + strconv.Itoa(u) + "' ;")
+							if err == nil {
+								var ku [7]string
+								for rows.Next() && id == 0 {
+									es := rows.Scan(&id, &uid, &r.Id_net, &r.Address, &r.FioZ, &r.Tel, &r.TelExtra, &r.Grafik[0], &r.Grafik[1], &r.Grafik[2], &r.Grafik[3], &r.Grafik[4], &r.Grafik[5], &r.Grafik[6], &ku[0], &ku[1], &ku[2], &ku[3], &ku[4], &ku[5], &ku[6], &r.AboutGrafik, &r.Otdels, &r.AboutAptek, &r.INN, &r.KPP, &r.OGRN, &r.OKPO, &r.UrAdres, &r.IdCity, &r.Lat, &r.Lng, &r.Rule)
+									if es == nil {
+										r.Id_apt = id
+										for y := 0; y < 7; y++ {
+											tstr := strings.Split(ku[y], "/")
+											if len(tstr) > 1 {
+												l1, _ := strconv.Atoi(tstr[0])
+												l2, _ := strconv.Atoi(tstr[1])
+												r.TimeW[y][0] = int8(l1)
+												r.TimeW[y][1] = int8(l2)
+											}
+										}
+									} else {
+										fmt.Println(es)
+									}
+
+								}
+								rows.Close()
+
+								if id != 0 {
+									zzn := GetNetworks(db)
+									id = 0
+									for k := 0; k < len(zzn) && id == 0; k++ {
+										if r.Id_net == zzn[k].id {
+											r.NetName = zzn[k].name
+											r.Descr = zzn[k].descr
+											id = 1
+										}
+									}
+								}
+							} else {
+								fmt.Println(err)
+							}
+							AptecaInfoRezChan <- r
+						}()
+					case u := <-LookNmmNameAskChan:
+						go func() {
+							rows, err := db.Query("SELECT MNN FROM mnn WHERE id=" + strconv.Itoa(u) + " ;")
+							var name string
+							var f = 0
+							if err == nil {
+								for rows.Next() && f == 0 {
+									_ = rows.Scan(&name)
+									f = 1
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							LookNmmNameRezChan <- name
+						}()
+					case u := <-LookNmmIdAskChan:
+						go func() {
+							var id int = 0
+							rows, err := db.Query("SELECT id FROM mnn WHERE MNN='" + u + "' ;")
+							if err == nil {
+								for rows.Next() && id == 0 {
+									_ = rows.Scan(&id)
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							LookNmmIdRezChan <- id
+						}()
+					case u := <-LookForNmmAskChan:
+						go func() {
+							var rnmm []UnmmLcart
+							var unmm UnmmLcart
+							var id int = 0
+							rnmm = make([]UnmmLcart, 0)
+							id = u
+							if id != 0 {
+								var drugid, formid, fabrid, mnnid int
+								rows, err := db.Query("SELECT * FROM registry WHERE MNNID=" + strconv.Itoa(u) + " ;")
+								if err == nil {
+									for rows.Next() {
+										fmt.Print("~")
+										errT := rows.Scan(&unmm.Id, &drugid, &formid, &mnnid, &fabrid, &unmm.NameL)
+										if errT == nil {
+											rowN, errN := db.Query("SELECT MNN FROM mnn WHERE id=" + strconv.Itoa(u) + " ;")
+											if errN == nil {
+												j = 0
+												for rowN.Next() && j == 0 {
+													_ = rowN.Scan(&unmm.NameD)
+													j = 1
+												}
+												rowN.Close()
+											} else {
+												fmt.Println(errN)
+											}
+											rowD, errD := db.Query("SELECT DRUG FROM drug WHERE id=" + strconv.Itoa(drugid) + " ;")
+											if errD == nil {
+												j = 0
+												for rowD.Next() && j == 0 {
+													_ = rowD.Scan(&unmm.Gdescr)
+													j = 1
+												}
+												rowD.Close()
+											} else {
+												fmt.Println(errD)
+											}
+											rowF, errF := db.Query("SELECT FORM FROM form WHERE id=" + strconv.Itoa(formid) + " ;")
+											if errF == nil {
+												j = 0
+												for rowF.Next() && j == 0 {
+													_ = rowF.Scan(&unmm.Gdescr)
+													j = 1
+												}
+												rowF.Close()
+											} else {
+												fmt.Println(errF)
+											}
+											rowP, errP := db.Query("SELECT Fabr FROM fabr WHERE id=" + strconv.Itoa(fabrid) + " ;")
+											if errP == nil {
+												j = 0
+												for rowP.Next() && j == 0 {
+													_ = rowP.Scan(&unmm.Proizv)
+													j = 1
+												}
+												rowP.Close()
+											} else {
+												fmt.Println(errP)
+											}
+
+											rnmm = append(rnmm, unmm)
+										} else {
+											fmt.Println(errT)
+										}
+									}
+									rows.Close()
+
+								} else {
+									fmt.Println(err)
+								}
+							}
+							LookForNmmRezChan <- rnmm
+						}()
+					case u := <-DelFromAptechkaAskChan:
+						//DELETE FROM table_name WHERE 1>0;
+						go func() {
+							stmt, err1 := db.Prepare("DELETE FROM aptechka WHERE l_id=? ;")
+							if err1 == nil {
+								_, err2 := stmt.Exec(u)
+								if err2 == nil {
+									//									id, err3 := res.LastInsertId()
+
+									DelFromAptechkaRezChan <- 1
+
+								} else {
+									fmt.Println(err2)
+									DelFromAptechkaRezChan <- -2
+								}
+								stmt.Close()
+							} else {
+								fmt.Println(err1)
+								DelFromAptechkaRezChan <- -3
+							}
+						}()
+					case u := <-SetAptechkaAskChan:
+						go func() {
+							stmt, err1 := db.Prepare("INSERT aptechka SET user_id=?,name_set=?,l_id=?")
+							if err1 == nil {
+								res, err2 := stmt.Exec(u.UserId, u.NameSpisok, u.LekId)
+								if err2 == nil {
+									id, err3 := res.LastInsertId()
+									if err3 == nil {
+										SetAptechkaRezChan <- int(id)
+									} else {
+										fmt.Println(err3)
+										SetAptechkaRezChan <- -1
+									}
+								} else {
+									fmt.Println(err2)
+									SetAptechkaRezChan <- -2
+								}
+								stmt.Close()
+							} else {
+								fmt.Println(err1)
+								SetAptechkaRezChan <- -3
+							}
+						}()
+					case u := <-GetAptechkaAskChan:
+						go func() {
+							var u_r aptch
+							var r_m []aptch
+							r_m = make([]aptch, 0)
+							rows, err := db.Query("SELECT l_id,name_set FROM aptechka WHERE user_id=? ;", u)
+							if err == nil {
+								for rows.Next() {
+									errK := rows.Scan(&u_r.LekId, &u_r.NameSpisok)
+									if errK != nil {
+										fmt.Println(errK)
+									} else {
+										u_r.UserId = u
+										r_m = append(r_m, u_r)
+
+									}
+
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+
+							GetAptechkaRezChan <- r_m
+						}()
+					case u := <-TakeAinfoAskChan:
+						go func() {
+							var m Ainfo
+							var f int = 0
+							rows, err := db.Query("SELECT id,id_net,address,tel,lat,lng FROM apteca WHERE uid=? ;", strconv.Itoa(u))
+							if err == nil {
+								for rows.Next() && f == 0 {
+									errK := rows.Scan(&m.IdA, &f, &m.Address, &m.Tel, &m.Lat, &m.Lng)
+									if errK != nil {
+										fmt.Println(errK)
+									}
+
+								}
+								rows.Close()
+							} else {
+								fmt.Println(err)
+							}
+							fmt.Println("Промежуточный f:", f)
+							if f != 0 {
+								zzu := GetNetworks(db)
+								for k := 0; k < len(zzu) && f != 0; k++ {
+									if zzu[k].id == f {
+										m.NameNet = zzu[k].name
+										f = 0
+									}
+								}
+							}
+							TakeAinfoRezChan <- m
+						}()
+					case x := <-NewPassAskChan:
+						////UPDATE user SET name='xxx',family='yyyy' WHERE id =7000;
+						go func() {
+							var ru int = 0
+							//UPDATE user SET name='xxx',family='yyyy' WHERE id =7000;
+							str := "UPDATE user SET "
+							str += "password='" + x.pass + "' "
+							str += "WHERE email ='" + x.email + "' ;"
+							stm, err := db.Prepare(str)
+							if err == nil {
+								_, err2 := stm.Exec()
+								if err2 == nil {
+									ru = 1
+								} else {
+									ru = -1
+								}
+								stm.Close()
+							} else {
+								ru = -2
+							}
+
+							NewPassRezChan <- ru
+						}()
+					case u := <-AddUAskChan:
+						go func() {
+							stmt, err := db.Prepare("INSERT user SET name=?,family=?,password=?,kind=?,policy=?,token=?,TTL=?,FA=?,email=?,tel=?,city=?,address=?,pol=?")
+							if err == nil {
+								res, err := stmt.Exec(u.Name, u.Family, u.Password, u.Kind, u.Policy, u.Token, u.Ttl, u.FlagAuth, u.Email, u.Tel, u.City, u.Address, u.Pol)
+								if err == nil {
+									id, err := res.LastInsertId()
+									if err == nil {
+										AddURezChan <- int(id)
+									} else {
+										AddURezChan <- -1
+									}
+
+								} else {
+									AddURezChan <- -2
+								}
+								stmt.Close()
+							} else {
+								AddURezChan <- -3
+							}
+						}()
+					case u := <-CheckUAskChan:
+						go func() {
+							if len(u) > 1 {
+								rows, err := db.Query("SELECT id FROM user WHERE email=? AND password=?", u[0], u[1])
+								if err == nil {
+									id := -1
+									for rows.Next() && id == -1 {
+										err := rows.Scan(&id)
+										if err != nil {
+											fmt.Println(err)
+										}
+									}
+									CheckURezChan <- id
+									rows.Close()
+								} else {
+									CheckURezChan <- -2
+								}
+							} else {
+								CheckURezChan <- -3
+							}
+						}()
+					case u := <-GetUAskChan:
+						go func() {
+							rez.Id = -1
+							rows, err := db.Query("SELECT * FROM user WHERE id=?", u)
+							if err == nil {
+
+								for rows.Next() {
+									err := rows.Scan(&rez.Id, &rez.Name, &rez.Family, &rez.Password, &rez.Kind, &rez.Policy, &rez.Token, &rez.Ttl, &rez.FlagAuth, &rez.Email, &rez.Tel, &rez.City, &rez.Address, &rez.Pol)
+									if err != nil {
+										fmt.Println(err)
+									}
+								}
+								GetURezChan <- rez
+								rows.Close()
+							} else {
+								rez.Id = -2
+								GetURezChan <- rez
+							}
+						}()
+					case r := <-UpdateUAskChan:
+						go func() {
+							var ru int = 0
+							//UPDATE user SET name='xxx',family='yyyy' WHERE id =7000;
+							str := "UPDATE user SET "
+							str += "name='" + r.name + "',"
+							str += "family='" + r.family + "',"
+							str += "tel='" + r.tel + "',"
+							str += "address='" + r.address + "',"
+							str += "pol=" + strconv.Itoa(r.pol) + " "
+							str += "WHERE id =" + strconv.Itoa(r.id) + " ;"
+							stm, err := db.Prepare(str)
+							if err == nil {
+								_, err2 := stm.Exec()
+								if err2 == nil {
+									ru = 1
+								} else {
+									ru = -1
+								}
+								stm.Close()
+							} else {
+								ru = -2
+							}
+
+							UpdateURezChan <- ru
+						}()
+					case u := <-IfExistAskChan:
+						go func() {
+							var id int = 0
+							rows, err := db.Query("SELECT id FROM user WHERE email=? AND FA=1", u)
+							if err == nil {
+								for rows.Next() && id == 0 {
+									err := rows.Scan(&id)
+									if err != nil {
+										fmt.Println(err)
+									}
+								}
+								rows.Close()
+							}
+
+							IfExistRezChan <- id
+						}()
+					case u := <-LoginUAskChan:
+						go func() {
+							rez.Id = -1
+							if len(u) > 1 {
+								fmt.Println()
+								rows, err := db.Query("SELECT * FROM user WHERE email='" + u[0] + "' AND password='" + u[1] + "' AND FA=1")
+								if err == nil {
+									fmt.Println("U>", u[0], u[1])
+									for rows.Next() {
+										fmt.Println("+")
+										err := rows.Scan(&rez.Id, &rez.Name, &rez.Family, &rez.Password, &rez.Kind, &rez.Policy, &rez.Token, &rez.Ttl, &rez.FlagAuth, &rez.Email, &rez.Tel, &rez.City, &rez.Address, &rez.Pol)
+										if err != nil {
+											fmt.Println(err)
+										}
+									}
+									LoginURezChan <- rez
+									rows.Close()
+								} else {
+									rez.Id = -2
+									LoginURezChan <- rez
+								}
+							} else {
+								rez.Id = -3
+								LoginURezChan <- rez
+							}
+						}()
+						//========================================================================================
+					case _ = <-RegCAskChan:
+						go func() {
+							var u_r R_region
+							var r_m []R_region
+							ft := "SELECT * FROM region ;"
+							rows, err := db.Query(ft)
+							r_m = make([]R_region, 0)
+							if err != nil {
+								fmt.Println(err.Error())
+							} else {
+								var id int
+								var name string
+								for rows.Next() {
+									_ = rows.Scan(&id, &name)
+									u_r.Id = id
+									u_r.NameR = name
+									r_m = append(r_m, u_r)
+								}
+								rows.Close()
+							}
+							RegCRezChan <- r_m
+						}()
+					case _ = <-RCityAskChan:
+						go func() {
+							var u_r R_city
+							var r_m []R_city
+							ft := "SELECT * FROM city ;"
+							rows, err := db.Query(ft)
+							r_m = make([]R_city, 0)
+							if err != nil {
+								fmt.Println(err.Error())
+							} else {
+								var id int
+								var idr int
+								var name string
+								var zoom int
+								var lat float32
+								var lng float32
+								for rows.Next() {
+									_ = rows.Scan(&id, &idr, &name, &zoom, &lat, &lng)
+									u_r.Id = id
+									u_r.Uid = idr
+									u_r.NameC = name
+									u_r.Zoom = zoom
+									u_r.Lat = lat
+									u_r.Lng = lng
+									r_m = append(r_m, u_r)
+								}
+								rows.Close()
+							}
+							RCityRezChan <- r_m
+						}()
+					case u := <-GetIdRegChan:
+						go func() {
+							var kid int = -1
+							ft := "SELECT id FROM registry WHERE NAME = '" + u + "';"
+							rows, err := db.Query(ft)
+							if err != nil {
+								fmt.Println(err.Error())
+							} else {
+
+								for rows.Next() && kid == -1 {
+									_ = rows.Scan(&kid)
+								}
+								rows.Close()
+							}
+							GetIdRegRezChan <- kid
+						}()
+					case u := <-GetIdNormRegChan:
+						go func() {
+							var kid int = -1
+							if TmpTablesFlag == true {
+								km := strings.Split(u, "")
+								fk := strings.ToUpper(km[0])
+								tname := ""
+								for i = 0; i < 10 && tname == ""; i++ {
+									for j = 0; j < len(TempTableNames[i].set); j++ {
+										if fk == TempTableNames[i].set[j].Bukva {
+											tname = TempTableNames[i].name
+										}
+									}
+								}
+								if tname != "" {
+									go func() {
+										ft := "SELECT k_id FROM " + tname + " WHERE name = '" + u + "';"
+
+										rows, err := db.Query(ft)
+										if err != nil {
+											fmt.Println(err.Error())
+										} else {
+
+											for rows.Next() {
+												_ = rows.Scan(&kid)
+
+											}
+
+											rows.Close()
+										}
+										GetIdNormRegRezChan <- kid
+									}()
+								} else {
+									GetIdNormRegRezChan <- kid
+								}
+
+							} else {
+								GetIdNormRegRezChan <- kid
+							}
+						}()
+					case u := <-SnLcartAskChan:
+
+						go func() {
+							var rez SnLcart
+							ft := "SELECT * FROM registry WHERE id = " + strconv.Itoa(u) + " ;"
+							rows, err_Z := db.Query(ft)
+							if err_Z == nil {
+								ex := 0
+								var id, drugid, formid, mnnid, fabrid int
+								for rows.Next() && ex == 0 {
+									_ = rows.Scan(&id, &drugid, &formid, &mnnid, &fabrid, &rez.NameL)
+									ex = 1
+									//fmt.Println("Id действующего:", mnnid)
+								}
+								rows.Close()
+
+								if ex == 1 {
+									ft = "SELECT FORM FROM form WHERE id = " + strconv.Itoa(formid) + " ;"
+									ex = 0
+									rowsF, errF := db.Query(ft)
+									if errF == nil {
+										for rowsF.Next() && ex == 0 {
+											_ = rowsF.Scan(&rez.Form)
+											ex = 1
+										}
+										rowsF.Close()
+									}
+
+									ft = "SELECT sostav,farmac FROM ldescr WHERE lid = " + strconv.Itoa(u) + " ;"
+									ex = 0
+									rowsE, errE := db.Query(ft)
+									if errE == nil {
+										for rowsE.Next() && ex == 0 {
+											_ = rowsE.Scan(&rez.Sostav, &rez.Farmac)
+											ex = 1
+										}
+										rowsE.Close()
+									}
+
+									ft = "SELECT FABR FROM fabr WHERE id = " + strconv.Itoa(fabrid) + " ;"
+									ex = 0
+									rowsP, errP := db.Query(ft)
+									if errP == nil {
+										for rowsP.Next() && ex == 0 {
+											_ = rowsP.Scan(&rez.Proizv)
+											ex = 1
+										}
+										rowsP.Close()
+									}
+
+									ft = "SELECT MNN FROM mnn WHERE id = " + strconv.Itoa(mnnid) + " ;"
+									ex = 0
+									rowsM, errM := db.Query(ft)
+									if errM == nil {
+										for rowsM.Next() && ex == 0 {
+											_ = rowsM.Scan(&rez.NameD)
+											fmt.Println("--------------------->", rez.NameD)
+											ex = 1
+										}
+										rowsM.Close()
+									} else {
+										fmt.Println(errM)
+									}
+									ft = "SELECT DRUG FROM drug WHERE id = " + strconv.Itoa(drugid) + " ;"
+									ex = 0
+									rowsD, errD := db.Query(ft)
+									if errD == nil {
+										for rowsD.Next() && ex == 0 {
+											_ = rowsD.Scan(&rez.Gdescr)
+											ex = 1
+										}
+										rowsD.Close()
+									}
+
+								}
+							}
+							SnLcartRezChan <- rez
+
+						}()
+					case u := <-FindAskChan:
+						if TmpTablesFlag == true {
+							km := strings.Split(u, "")
+							fk := strings.ToUpper(km[0])
+							tname := ""
+							for i = 0; i < 10 && tname == ""; i++ {
+								for j = 0; j < len(TempTableNames[i].set); j++ {
+									if fk == TempTableNames[i].set[j].Bukva {
+										tname = TempTableNames[i].name
+									}
+								}
+							}
+							if tname != "" {
+								go func() {
+									ft := "SELECT name,kind FROM " + tname + " WHERE name Like '" + u + "%';"
+									fmt.Println(ft, "u=", u)
+									bz := 0
+									rows, err := db.Query(ft)
+									if err != nil {
+										fmt.Println(err.Error())
+										FindRezChan <- nil
+									} else {
+										var kp string
+										var knd int
+										kz := make([]string, 0)
+										for rows.Next() {
+											_ = rows.Scan(&kp, &knd)
+											kup := ""
+											if knd == 1 {
+												kup += "(" + kp + ")"
+											} else {
+												kup += "{" + kp + "}"
+											}
+											kz = append(kz, kup)
+											bz++
+										}
+
+										FindRezChan <- kz
+										rows.Close()
+									}
+								}()
+							} else {
+								FindRezChan <- nil
+							}
+
+						} else {
+							go func() {
+								ft := "SELECT NAME FROM registry WHERE NAME Like '" + u + "%' LIMIT 200;"
+								fmt.Println(ft, "u=", u)
+								bz := 0
+								rows, err := db.Query(ft)
+								if err != nil {
+									fmt.Println(err.Error())
+									FindRezChan <- nil
+								} else {
+									var kp string
+									kz := make([]string, 0)
+									for rows.Next() && bz < 200 {
+										_ = rows.Scan(&kp)
+										kup := ""
+										kup += "[" + kp + "]"
+										kz = append(kz, kup)
+										bz++
+									}
+
+									FindRezChan <- kz
+									rows.Close()
+								}
+							}()
+						}
+
+					default:
+						ddur := time.Since(TimeStamp)
+						if int(ddur.Seconds()) >= 2 {
+							err = db.Ping()
+							if err == nil {
+								TimeStamp = time.Now().UTC()
+								//fmt.Println("+")
+							} else {
+								ex2 = 1
+							}
+						}
+						time.Sleep(20 * time.Nanosecond)
+					}
+				}
+				db.Close()
+			} else {
+				db.Close()
+			}
+
+		} else {
+			fmt.Println("some bd error")
+			fmt.Println(err.Error())
+		}
+
+	}
+}
+
+func DetectModels() {
+	fmt.Println("Models here")
+}
+
+//-----------------------------------------------------
+var GetSearchFrAskChan chan string
+var GetSearchFrRezChan chan []AccShort
+
+func GetSearchFr(param string) []AccShort {
+	GetSearchFrAskChan <- param
+	r := <-GetSearchFrRezChan
+	return r
+}
+
+//-----------------------------------------------------
+type Ddu struct {
+	BronId int
+	LekId  int
+	Lek    string
+	Kolvo  int
+	Price  float32
+	Proizv string
+	Status int
+}
+type Kpu struct {
+	Id      int
+	IdUser  int
+	Name    string
+	Tel     string
+	Norder  int
+	Summary float32
+	Sets    []Ddu
+}
+
+var AptBronListAskChan chan int
+var AptBronListRezChan chan []Kpu
+
+func AptekaBronList(idapt int) []Kpu {
+	AptBronListAskChan <- idapt
+	r := <-AptBronListRezChan
+	return r
+}
+
+//-----------------------------------------------------
+type Ddr struct {
+	BronId int
+	LekId  int
+	Lek    string
+	Kolvo  int
+	Price  float32
+	Deistv string
+	Proizv string
+	Status int
+}
+type Kpp struct {
+	Id      int
+	IdApt   int
+	NetName string
+	Address string
+	Norder  int
+	Summary float32
+	Sets    []Ddr
+}
+
+var GetBronListAskChan chan int
+var GetBronListRezChan chan []Kpp
+
+func GetBronList(id int) []Kpp {
+	GetBronListAskChan <- id
+	r := <-GetBronListRezChan
+	return r
+}
+
+type AccShort struct {
+	Id     int
+	Name   string
+	Family string
+	Kind   int
+}
+
+//--------------------------------------------------
+var GetFriendsAskChan chan int
+var GetFriendsRezChan chan []AccShort
+
+func GetFriends(id int) []AccShort {
+	GetFriendsAskChan <- id
+	r := <-GetFriendsRezChan
+	return r
+}
+
+//--------------------------------------------------
+var AskFriendAskChan chan int
+var AskFriendRezChan chan []AccShort
+
+func GetAskFriend(id int) []AccShort {
+	AskFriendAskChan <- id
+	r := <-AskFriendRezChan
+	return r
+}
+
+//--------------------------------------------------
+type smsg struct {
+	IdFrom int
+	IdTo   int
+	Time   int
+	Date   int
+	Mess   string
+}
+
+var AskMessagesAskChan chan int
+var AskMessagesRezChan chan []smsg
+
+func GetMessages(id int) []smsg {
+	AskMessagesAskChan <- id
+	r := <-AskMessagesRezChan
+	return r
+}
+
+//=*Models*
+//--------------------------------------------------------
+type lbron struct {
+	id_user int
+	id_apt  int
+	id_lek  int
+	kolvo   int
+	price   string
+}
+
+var AddBronAskChan chan lbron
+var AddBronRezChan chan int
+
+func C_SendBronModel(id_user int, id_apt int, id_lek int, kolvo int, price string) int {
+	var k lbron
+	k.id_user = id_user
+	k.id_apt = id_apt
+	k.id_lek = id_lek
+	k.kolvo = kolvo
+	k.price = price
+	AddBronAskChan <- k
+	i := <-AddBronRezChan
+	return i
+}
+
+//------------------------------------------------------------------------
+var ConfirmBronAskChan chan int
+var ConfirmBronRezChan chan int
+
+func C_ConfirmBronModel(idbron int) int {
+	ConfirmBronAskChan <- idbron
+	x := <-ConfirmBronRezChan
+	return x
+}
+
+//------------------------------------------------------------------------
+var ClearBronAskChan chan int
+var ClearBronRezChan chan int
+
+func C_ClearBronModel(idbron int) int {
+	ClearBronAskChan <- idbron
+	x := <-ClearBronRezChan
+	return x
+}
+
+//------------------------------------------------------------------------
+var AcceptBronAskChan chan int
+var AcceptBronRezChan chan int
+
+func C_AcceptBronModel(idbron int) int {
+	AcceptBronAskChan <- idbron
+	x := <-AcceptBronRezChan
+	return x
+}
+
+//------------------------------------------------------------------------
+var RefuseBronAskChan chan int
+var RefuseBronRezChan chan int
+
+func C_RefuseBronModel(idbron int) int {
+	RefuseBronAskChan <- idbron
+	x := <-RefuseBronRezChan
+	return x
+}
+
+//------------------------------------------------------------------------
+var FriendAddAskChan chan [2]int
+var FriendAddRezChan chan int
+
+func C_FrAcceptModel(id int, param int) int {
+	var t [2]int
+	t[0] = id
+	t[1] = param
+	FriendAddAskChan <- t
+	r := <-FriendAddRezChan
+	return r
+}
+
+func C_FrDenayModel() {
+	fmt.Println("Models here")
+}
+
+func C_SeekFriendModel() {
+	fmt.Println("Models here")
+}
+
+func C_ProfilIdModel() {
+	fmt.Println("Models here")
+}
+
+func C_ListFrLekModel() {
+	fmt.Println("Models here")
+}
+
+//-----------------------------------------------
+var DeleteFrAskChan chan [2]int
+var DeleteFrRezChan chan int
+
+func C_DeleteFriendModel(id int, param int) int {
+	var t [2]int
+	t[0] = id
+	t[1] = param
+	DeleteFrAskChan <- t
+	r := <-DeleteFrRezChan
+	return r
+}
+
+func C_FavoriteFrListModel() {
+	fmt.Println("Models here")
+}
+
+func C_SeekRezultModel() {
+	fmt.Println("Models here")
+}
+
+//------------------------------------------------
+var AskFriendshipAskChan chan [2]int
+var AskFriendshipRezChan chan int
+
+func C_AskFrienshipModel(id int, param int) int {
+	var t [2]int
+	t[0] = id
+	t[1] = param
+	AskFriendshipAskChan <- t
+	r := <-AskFriendshipRezChan
+	return r
+}
+
+//----------------------------------------------------
+type sndm struct {
+	id   int
+	mess string
+}
+
+var SendMessAskChan chan sndm
+var SendMessRezChan chan int
+
+func C_SendMessModel(id int, mess string) int {
+	var ty sndm
+	ty.id = id
+	ty.mess = mess
+	SendMessAskChan <- ty
+	r := <-SendMessRezChan
+	return r
+}
+
+//---------------------------------------------------------
+type akkk struct {
+	Id      int
+	Short   string
+	Content string
+}
+
+var GetAkciiAskChan chan int
+var GetAkciiRezChan chan []akkk
+var GetAkciiIDAskChan chan int
+var GetAkciiIDRezChan chan akkk
+
+func C_GetAkciiModel() []akkk {
+	GetAkciiAskChan <- 1
+	r := <-GetAkciiRezChan
+	return r
+}
+func C_GetAkciiIDModel(id int) akkk {
+	GetAkciiIDAskChan <- 1
+	r := <-GetAkciiIDRezChan
+	return r
+}
+
+//---------------------------------------------------------------
+func C_GetMyAmessModel() {
+	fmt.Println("Models here")
+}
+
+func C_GetAptekaIdModel() {
+	fmt.Println("Models here")
+}
+
+//-*Models*
